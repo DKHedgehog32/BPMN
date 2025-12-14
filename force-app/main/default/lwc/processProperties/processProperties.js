@@ -300,7 +300,7 @@ export default class ProcessProperties extends LightningElement {
         return `threshold-badge threshold-${this.noajsThreshold}`;
     }
     
-    // Dimension scores
+    // Dimension scores - NEW ACADEMIC GRADE DIMENSIONS
     get dimensionStructural() {
         return this._scoreData?.dimensions?.structural || 0;
     }
@@ -309,8 +309,8 @@ export default class ProcessProperties extends LightningElement {
         return this._scoreData?.dimensions?.controlFlow || 0;
     }
     
-    get dimensionCorrectness() {
-        return this._scoreData?.dimensions?.correctness || 0;
+    get dimensionStructuredness() {
+        return this._scoreData?.dimensions?.structuredness || 0;
     }
     
     get dimensionNaming() {
@@ -319,6 +319,71 @@ export default class ProcessProperties extends LightningElement {
     
     get dimensionModularity() {
         return this._scoreData?.dimensions?.modularity || 0;
+    }
+    
+    get dimensionStartEnd() {
+        return this._scoreData?.dimensions?.startEnd || 0;
+    }
+    
+    get dimensionHandover() {
+        return this._scoreData?.dimensions?.handover || 0;
+    }
+    
+    // Weighted CFC (includes nesting depth)
+    get scoreWeightedCFC() {
+        return this._scoreData?.weightedCfc || 0;
+    }
+    
+    // Structuredness score
+    get structurednessScore() {
+        return this._scoreData?.structuredness?.score || 100;
+    }
+    
+    get structurednessSplits() {
+        return this._scoreData?.structuredness?.totalSplits || 0;
+    }
+    
+    get structurednessJoins() {
+        return this._scoreData?.structuredness?.totalJoins || 0;
+    }
+    
+    get structurednessMatched() {
+        return this._scoreData?.structuredness?.matchedPairs || 0;
+    }
+    
+    // Naming quality details
+    get namingOverallScore() {
+        return this._scoreData?.namingQuality?.overallScore || 100;
+    }
+    
+    get namingGoodLabels() {
+        return this._scoreData?.namingQuality?.goodLabels || 0;
+    }
+    
+    get namingPoorLabels() {
+        return this._scoreData?.namingQuality?.poorLabels || 0;
+    }
+    
+    // Handover complexity
+    get handoverScore() {
+        return this._scoreData?.handoverComplexity?.normalizedScore || 0;
+    }
+    
+    get handoverTransitions() {
+        return this._scoreData?.handoverComplexity?.transitions?.length || 0;
+    }
+    
+    get handoverHasRoleData() {
+        return this._scoreData?.handoverComplexity?.hasRoleData || false;
+    }
+    
+    // Start/End event counts
+    get startEventCount() {
+        return this._scoreData?.startEventCount || 0;
+    }
+    
+    get endEventCount() {
+        return this._scoreData?.endEventCount || 0;
     }
     
     // =========================================================================
@@ -345,8 +410,8 @@ export default class ProcessProperties extends LightningElement {
         return this.getBarWidthClass(this.dimensionControlFlow);
     }
     
-    get correctnessBarClass() {
-        return this.getBarWidthClass(this.dimensionCorrectness);
+    get structurednessBarClass() {
+        return this.getBarWidthClass(this.dimensionStructuredness);
     }
     
     get namingBarClass() {
@@ -355,6 +420,31 @@ export default class ProcessProperties extends LightningElement {
     
     get modularityBarClass() {
         return this.getBarWidthClass(this.dimensionModularity);
+    }
+    
+    get startEndBarClass() {
+        return this.getBarWidthClass(this.dimensionStartEnd);
+    }
+    
+    get handoverBarClass() {
+        return this.getBarWidthClass(this.dimensionHandover);
+    }
+    
+    // Academic compliance indicators
+    get complianceCardosoCFC() {
+        return this._scoreData?.compliance?.cardosoCFC || false;
+    }
+    
+    get complianceMendling7PMG() {
+        return this._scoreData?.compliance?.mendling7PMG || false;
+    }
+    
+    get complianceSignavioNesting() {
+        return this._scoreData?.compliance?.signavioNesting || false;
+    }
+    
+    get complianceSignavioHandover() {
+        return this._scoreData?.compliance?.signavioHandover || false;
     }
     
     // Issues

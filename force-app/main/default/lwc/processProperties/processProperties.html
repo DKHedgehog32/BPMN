@@ -82,53 +82,71 @@
                             </div>
                         </div>
                         
-                        <!-- Dimension Scores -->
+                        <!-- Dimension Scores - Academic Grade (7 Dimensions) -->
                         <div class="dimensions-section">
                             <h4 class="dimensions-title">Dimension Scores</h4>
                             
-                            <!-- Structural -->
+                            <!-- Structural (7PMG G1) - 15% -->
                             <div class="dimension-row">
-                                <span class="dimension-label">Structural</span>
+                                <span class="dimension-label" title="Element count - 7PMG G1">Structural</span>
                                 <div class="dimension-bar-container">
                                     <div class={structuralBarClass}></div>
                                 </div>
                                 <span class="dimension-value">{dimensionStructural}</span>
                             </div>
                             
-                            <!-- Control Flow -->
+                            <!-- Control Flow (Cardoso CFC + Nesting) - 25% -->
                             <div class="dimension-row">
-                                <span class="dimension-label">Control Flow</span>
+                                <span class="dimension-label" title="CFC with nesting depth - Cardoso/Signavio">Control Flow</span>
                                 <div class="dimension-bar-container">
                                     <div class={controlFlowBarClass}></div>
                                 </div>
                                 <span class="dimension-value">{dimensionControlFlow}</span>
                             </div>
                             
-                            <!-- Correctness -->
+                            <!-- Structuredness (7PMG G4) - 20% -->
                             <div class="dimension-row">
-                                <span class="dimension-label">Correctness</span>
+                                <span class="dimension-label" title="Split/Join matching - 7PMG G4">Structuredness</span>
                                 <div class="dimension-bar-container">
-                                    <div class={correctnessBarClass}></div>
+                                    <div class={structurednessBarClass}></div>
                                 </div>
-                                <span class="dimension-value">{dimensionCorrectness}</span>
+                                <span class="dimension-value">{dimensionStructuredness}</span>
                             </div>
                             
-                            <!-- Naming -->
+                            <!-- Naming (7PMG G6) - 15% -->
                             <div class="dimension-row">
-                                <span class="dimension-label">Naming</span>
+                                <span class="dimension-label" title="Verb-object labels - 7PMG G6">Naming</span>
                                 <div class="dimension-bar-container">
                                     <div class={namingBarClass}></div>
                                 </div>
                                 <span class="dimension-value">{dimensionNaming}</span>
                             </div>
                             
-                            <!-- Modularity -->
+                            <!-- Modularity (7PMG G7) - 10% -->
                             <div class="dimension-row">
-                                <span class="dimension-label">Modularity</span>
+                                <span class="dimension-label" title="Model decomposition - 7PMG G7">Modularity</span>
                                 <div class="dimension-bar-container">
                                     <div class={modularityBarClass}></div>
                                 </div>
                                 <span class="dimension-value">{dimensionModularity}</span>
+                            </div>
+                            
+                            <!-- Start/End (7PMG G3) - 5% -->
+                            <div class="dimension-row">
+                                <span class="dimension-label" title="Single start/end - 7PMG G3">Start/End</span>
+                                <div class="dimension-bar-container">
+                                    <div class={startEndBarClass}></div>
+                                </div>
+                                <span class="dimension-value">{dimensionStartEnd}</span>
+                            </div>
+                            
+                            <!-- Handover (Signavio) - 10% -->
+                            <div class="dimension-row">
+                                <span class="dimension-label" title="Role transitions - Signavio">Handover</span>
+                                <div class="dimension-bar-container">
+                                    <div class={handoverBarClass}></div>
+                                </div>
+                                <span class="dimension-value">{dimensionHandover}</span>
                             </div>
                         </div>
                         

@@ -314,130 +314,916 @@ export default class ProcessCanvas extends LightningElement {
     }
     
     // =========================================================================
-    // PROCESS QUALITY SCORING
+    // PROCESS QUALITY SCORING - Academic Grade Implementation
+    // =========================================================================
+    // Based on:
+    // - Cardoso (2006): Control-Flow Complexity (CFC) metric
+    // - Mendling, Reijers, van der Aalst (2010): Seven Process Modeling Guidelines (7PMG)
+    // - SAP Signavio: Multi-dimensional complexity scoring
     // =========================================================================
     
+    /**
+     * Get outgoing sequence flows from an element
+     */
     getOutgoingFlows(elementId) {
         return this.connections.filter(c => c.sourceId === elementId);
     }
     
+    /**
+     * Get incoming sequence flows to an element
+     */
+    getIncomingFlows(elementId) {
+        return this.connections.filter(c => c.targetId === elementId);
+    }
+    
+    /**
+     * Check if element is a split gateway (more outgoing than incoming)
+     */
+    isSplitGateway(elementId) {
+        const typeConfig = ELEMENT_TYPES[this.elements.find(el => el.id === elementId)?.type];
+        if (!typeConfig?.isGateway) return false;
+        return this.getOutgoingFlows(elementId).length > 1;
+    }
+    
+    /**
+     * Check if element is a join gateway (more incoming than outgoing)
+     */
+    isJoinGateway(elementId) {
+        const typeConfig = ELEMENT_TYPES[this.elements.find(el => el.id === elementId)?.type];
+        if (!typeConfig?.isGateway) return false;
+        return this.getIncomingFlows(elementId).length > 1;
+    }
+    
+    // =========================================================================
+    // NESTING DEPTH CALCULATION (Signavio methodology)
+    // =========================================================================
+    // CFC is multiplied by nesting level - deeper nested decisions are harder
+    // to understand and more error-prone
+    // =========================================================================
+    
+    /**
+     * Calculate nesting depth for all gateways
+     * Returns map of elementId -> nesting level (1 = top level)
+     * 
+     * Algorithm: BFS from start events, tracking open splits
+     * When we enter a split, increment depth
+     * When we reach matching join, decrement depth
+     */
+    calculateNestingDepths() {
+        const nestingDepths = {};
+        const visited = new Set();
+        const openSplits = []; // Stack of open split gateways
+        
+        // Find start events
+        const startEvents = this.elements.filter(el => 
+            el.type === 'StartEvent' || el.type === 'TimerStartEvent' || el.type === 'MessageStartEvent'
+        );
+        
+        if (startEvents.length === 0) {
+            // No start event - assign depth 1 to all gateways
+            this.elements.forEach(el => {
+                const typeConfig = ELEMENT_TYPES[el.type];
+                if (typeConfig?.isGateway) {
+                    nestingDepths[el.id] = 1;
+                }
+            });
+            return nestingDepths;
+        }
+        
+        // BFS traversal
+        const queue = startEvents.map(el => ({ elementId: el.id, depth: 0, openSplits: [] }));
+        
+        while (queue.length > 0) {
+            const { elementId, depth, openSplits: currentOpenSplits } = queue.shift();
+            
+            if (visited.has(elementId)) continue;
+            visited.add(elementId);
+            
+            const element = this.elements.find(el => el.id === elementId);
+            if (!element) continue;
+            
+            const typeConfig = ELEMENT_TYPES[element.type];
+            let newDepth = depth;
+            let newOpenSplits = [...currentOpenSplits];
+            
+            if (typeConfig?.isGateway) {
+                const isSplit = this.isSplitGateway(elementId);
+                const isJoin = this.isJoinGateway(elementId);
+                
+                if (isSplit && !isJoin) {
+                    // Pure split - increase depth
+                    newDepth = depth + 1;
+                    newOpenSplits.push({ id: elementId, type: typeConfig.cfcType });
+                    nestingDepths[elementId] = newDepth;
+                } else if (isJoin && !isSplit) {
+                    // Pure join - try to match with open split
+                    const matchIndex = newOpenSplits.findLastIndex(s => s.type === typeConfig.cfcType);
+                    if (matchIndex >= 0) {
+                        newOpenSplits.splice(matchIndex, 1);
+                        newDepth = Math.max(0, depth - 1);
+                    }
+                    nestingDepths[elementId] = depth; // Join is at the depth before closing
+                } else if (isSplit && isJoin) {
+                    // Mixed gateway (both split and join)
+                    nestingDepths[elementId] = depth + 1;
+                    newDepth = depth + 1;
+                } else {
+                    // Gateway with single in/out
+                    nestingDepths[elementId] = Math.max(1, depth);
+                }
+            }
+            
+            // Queue successors
+            const outgoing = this.getOutgoingFlows(elementId);
+            outgoing.forEach(conn => {
+                if (!visited.has(conn.targetId)) {
+                    queue.push({ 
+                        elementId: conn.targetId, 
+                        depth: newDepth, 
+                        openSplits: newOpenSplits 
+                    });
+                }
+            });
+        }
+        
+        // Ensure all gateways have at least depth 1
+        this.elements.forEach(el => {
+            const typeConfig = ELEMENT_TYPES[el.type];
+            if (typeConfig?.isGateway && !nestingDepths[el.id]) {
+                nestingDepths[el.id] = 1;
+            }
+        });
+        
+        return nestingDepths;
+    }
+    
+    // =========================================================================
+    // STRUCTUREDNESS ANALYSIS (7PMG G4)
+    // =========================================================================
+    // "Model as structured as possible" - every split should have a matching
+    // join of the same type. Unstructured models are more error-prone.
+    // =========================================================================
+    
+    /**
+     * Analyze process structuredness
+     * Returns: { score: 0-100, matchedPairs: [], unmatchedSplits: [], unmatchedJoins: [], typeMismatches: [] }
+     */
+    analyzeStructuredness() {
+        const splits = { XOR: [], AND: [], OR: [] };
+        const joins = { XOR: [], AND: [], OR: [] };
+        const issues = [];
+        
+        // Categorize gateways
+        this.elements.forEach(el => {
+            const typeConfig = ELEMENT_TYPES[el.type];
+            if (!typeConfig?.isGateway || !typeConfig.cfcType) return;
+            
+            const cfcType = typeConfig.cfcType;
+            const isSplit = this.isSplitGateway(el.id);
+            const isJoin = this.isJoinGateway(el.id);
+            
+            if (isSplit) splits[cfcType]?.push(el);
+            if (isJoin) joins[cfcType]?.push(el);
+        });
+        
+        // Count matches and mismatches
+        let matchedPairs = 0;
+        let totalSplits = 0;
+        const unmatchedSplits = [];
+        const unmatchedJoins = [];
+        
+        ['XOR', 'AND', 'OR'].forEach(type => {
+            const splitCount = splits[type].length;
+            const joinCount = joins[type].length;
+            totalSplits += splitCount;
+            
+            const matched = Math.min(splitCount, joinCount);
+            matchedPairs += matched;
+            
+            // Track unmatched
+            if (splitCount > joinCount) {
+                const excess = splitCount - joinCount;
+                for (let i = 0; i < excess; i++) {
+                    unmatchedSplits.push({ 
+                        element: splits[type][joinCount + i], 
+                        type,
+                        message: `${type} split without matching ${type} join`
+                    });
+                }
+            } else if (joinCount > splitCount) {
+                const excess = joinCount - splitCount;
+                for (let i = 0; i < excess; i++) {
+                    unmatchedJoins.push({ 
+                        element: joins[type][splitCount + i], 
+                        type,
+                        message: `${type} join without matching ${type} split`
+                    });
+                }
+            }
+        });
+        
+        // Check for type mismatches (e.g., XOR split followed by AND join)
+        // This is a simplified check - full analysis would require path tracing
+        const typeMismatches = [];
+        const totalSplitCount = splits.XOR.length + splits.AND.length + splits.OR.length;
+        const totalJoinCount = joins.XOR.length + joins.AND.length + joins.OR.length;
+        
+        if (totalSplitCount !== totalJoinCount) {
+            typeMismatches.push({
+                message: `Unbalanced gateways: ${totalSplitCount} splits vs ${totalJoinCount} joins`,
+                severity: 'medium'
+            });
+        }
+        
+        // Calculate structuredness score
+        // 100% = all splits have matching joins of same type
+        // Deduct points for unmatched and mismatched gateways
+        let score = 100;
+        if (totalSplits > 0) {
+            score = Math.round((matchedPairs / totalSplits) * 100);
+        }
+        
+        // Additional penalty for type mismatches
+        score = Math.max(0, score - (typeMismatches.length * 10));
+        
+        return {
+            score,
+            matchedPairs,
+            totalSplits,
+            totalJoins: joins.XOR.length + joins.AND.length + joins.OR.length,
+            unmatchedSplits,
+            unmatchedJoins,
+            typeMismatches,
+            splits,
+            joins
+        };
+    }
+    
+    // =========================================================================
+    // HANDOVER COMPLEXITY (Signavio methodology)
+    // =========================================================================
+    // Tracks role/lane transitions between activities
+    // New role = 1.5 points, returning role = 1.0 points
+    // =========================================================================
+    
+    /**
+     * Calculate handover complexity based on role transitions
+     * Uses element.assignedRole or element.lane property
+     */
+    calculateHandoverComplexity() {
+        let handoverScore = 0;
+        const seenRoles = new Set();
+        const transitions = [];
+        
+        // Build adjacency for activities (tasks only, not gateways/events)
+        const activities = this.elements.filter(el => 
+            el.type.includes('Task') || el.type === 'SubProcess' || el.type === 'CallActivity'
+        );
+        
+        // For each connection between activities, check role change
+        this.connections.forEach(conn => {
+            const source = this.elements.find(el => el.id === conn.sourceId);
+            const target = this.elements.find(el => el.id === conn.targetId);
+            
+            if (!source || !target) return;
+            
+            // Get roles (use assignedRole, lane, or 'default')
+            const sourceRole = source.assignedRole || source.lane || 'default';
+            const targetRole = target.assignedRole || target.lane || 'default';
+            
+            // Skip if both are default (no role info)
+            if (sourceRole === 'default' && targetRole === 'default') return;
+            
+            // Check for handover
+            if (sourceRole !== targetRole && targetRole !== 'default') {
+                if (!seenRoles.has(targetRole)) {
+                    // New role - 1.5 points
+                    handoverScore += 1.5;
+                    seenRoles.add(targetRole);
+                    transitions.push({
+                        from: sourceRole,
+                        to: targetRole,
+                        type: 'new',
+                        points: 1.5
+                    });
+                } else {
+                    // Returning to known role - 1.0 points
+                    handoverScore += 1.0;
+                    transitions.push({
+                        from: sourceRole,
+                        to: targetRole,
+                        type: 'return',
+                        points: 1.0
+                    });
+                }
+            }
+            
+            // Track source role
+            if (sourceRole !== 'default') {
+                seenRoles.add(sourceRole);
+            }
+        });
+        
+        // Normalize to 0-10 scale (Signavio: 1.5 = min, 10 = max)
+        // If base score <= 1.5: normalized = 0
+        // If base score >= 10: normalized = 10
+        let normalizedScore = 0;
+        if (handoverScore > 1.5) {
+            normalizedScore = Math.min(10, ((handoverScore - 1.5) / 8.5) * 10);
+        }
+        
+        return {
+            baseScore: handoverScore,
+            normalizedScore: Math.round(normalizedScore * 10) / 10,
+            uniqueRoles: seenRoles.size,
+            transitions,
+            hasRoleData: seenRoles.size > 0 && !seenRoles.has('default')
+        };
+    }
+    
+    // =========================================================================
+    // ENHANCED NAMING QUALITY (7PMG G6)
+    // =========================================================================
+    // "Use verb-object activity labels"
+    // Good: "Send Letter", "Process Application", "Review Document"
+    // Bad: "Letter Sending", "Application Processing", "Document Review"
+    // =========================================================================
+    
+    /**
+     * Common action verbs for BPMN activities (verb-object style)
+     */
+    static ACTION_VERBS = [
+        // Communication
+        'send', 'receive', 'notify', 'inform', 'communicate', 'email', 'call',
+        // Processing
+        'process', 'handle', 'manage', 'execute', 'perform', 'complete', 'finish',
+        // Review/Approval
+        'review', 'approve', 'reject', 'validate', 'verify', 'check', 'confirm', 'assess',
+        // CRUD Operations
+        'create', 'read', 'update', 'delete', 'add', 'remove', 'modify', 'edit',
+        // Data Operations
+        'calculate', 'compute', 'analyze', 'evaluate', 'determine', 'generate',
+        // Document Operations
+        'prepare', 'draft', 'write', 'sign', 'submit', 'file', 'archive', 'store',
+        // Assignment
+        'assign', 'allocate', 'delegate', 'schedule', 'plan', 'prioritize',
+        // Retrieval
+        'get', 'fetch', 'retrieve', 'obtain', 'request', 'order', 'collect',
+        // Decision
+        'decide', 'select', 'choose', 'pick', 'resolve',
+        // Start/End
+        'start', 'begin', 'initiate', 'end', 'close', 'terminate', 'cancel',
+        // Transformation
+        'convert', 'transform', 'translate', 'format', 'export', 'import',
+        // Monitoring
+        'monitor', 'track', 'log', 'record', 'register', 'report'
+    ];
+    
+    /**
+     * Default/generic names that should be replaced
+     */
+    static DEFAULT_NAMES = [
+        'start', 'end', 'task', 'gateway', 'parallel', 'inclusive', 'exclusive',
+        'event', 'service task', 'script task', 'manual task', 'user task',
+        'sub-process', 'subprocess', 'activity', 'action', 'step', 'process',
+        'business rule task', 'send task', 'receive task', 'call activity'
+    ];
+    
+    /**
+     * Action-noun suffixes (indicate wrong style)
+     */
+    static ACTION_NOUN_SUFFIXES = [
+        'ing', 'tion', 'sion', 'ment', 'ance', 'ence', 'ness', 'ity', 'al'
+    ];
+    
+    /**
+     * Analyze naming quality for all activities
+     * Returns detailed scoring per element and overall score
+     */
+    analyzeNamingQuality() {
+        const results = [];
+        let totalScore = 0;
+        let analyzedCount = 0;
+        
+        // Only analyze activities (tasks, subprocesses), not events/gateways
+        const activities = this.elements.filter(el => 
+            el.type.includes('Task') || el.type === 'SubProcess' || el.type === 'CallActivity'
+        );
+        
+        activities.forEach(el => {
+            const analysis = this.analyzeLabel(el.name || '', el.type);
+            results.push({
+                elementId: el.id,
+                elementType: el.type,
+                label: el.name || '',
+                ...analysis
+            });
+            totalScore += analysis.score;
+            analyzedCount++;
+        });
+        
+        // Calculate overall naming quality percentage
+        const overallScore = analyzedCount > 0 
+            ? Math.round((totalScore / analyzedCount) * 100) 
+            : 100;
+        
+        // Categorize issues
+        const issues = results.filter(r => r.score < 0.7).map(r => ({
+            elementId: r.elementId,
+            label: r.label,
+            issue: r.issues.join(', '),
+            suggestion: r.suggestion
+        }));
+        
+        return {
+            overallScore,
+            analyzedCount,
+            goodLabels: results.filter(r => r.score >= 0.8).length,
+            acceptableLabels: results.filter(r => r.score >= 0.5 && r.score < 0.8).length,
+            poorLabels: results.filter(r => r.score < 0.5).length,
+            details: results,
+            issues
+        };
+    }
+    
+    /**
+     * Analyze a single label for naming quality
+     * Returns: { score: 0-1, issues: [], suggestion: string }
+     */
+    analyzeLabel(label, elementType) {
+        const issues = [];
+        let score = 1.0;
+        let suggestion = '';
+        
+        // Normalize label for analysis
+        const normalizedLabel = label.trim().toLowerCase();
+        const words = label.trim().split(/\s+/);
+        const firstWord = words[0]?.toLowerCase() || '';
+        
+        // Check 1: Empty or missing label
+        if (!label || label.trim() === '') {
+            return {
+                score: 0,
+                issues: ['Missing label'],
+                suggestion: 'Add a descriptive verb-object label',
+                isDefault: true,
+                isVerbObject: false,
+                isActionNoun: false
+            };
+        }
+        
+        // Check 2: Default/generic name
+        const isDefault = ProcessCanvas.DEFAULT_NAMES.some(d => 
+            normalizedLabel === d || normalizedLabel === d.replace(/\s+/g, '')
+        );
+        if (isDefault) {
+            score -= 0.5;
+            issues.push('Generic/default name');
+            suggestion = `Replace with specific action like "Process ${elementType.replace('Task', '').trim() || 'Request'}"`;
+        }
+        
+        // Check 3: Starts with action verb (good - verb-object style)
+        const startsWithVerb = ProcessCanvas.ACTION_VERBS.some(v => 
+            firstWord === v || firstWord === v + 's' || firstWord === v + 'es'
+        );
+        
+        // Check 4: Action-noun style (bad - e.g., "Letter Sending")
+        const lastWord = words[words.length - 1]?.toLowerCase() || '';
+        const isActionNoun = ProcessCanvas.ACTION_NOUN_SUFFIXES.some(suffix => 
+            lastWord.endsWith(suffix) && lastWord.length > suffix.length + 2
+        );
+        
+        if (startsWithVerb) {
+            // Good - verb-object style
+            if (words.length >= 2) {
+                // Perfect - verb + object
+                // No deduction
+            } else {
+                // Verb only, missing object
+                score -= 0.2;
+                issues.push('Missing object (what is being done?)');
+                suggestion = `Add object: "${label} [something]"`;
+            }
+        } else if (isActionNoun) {
+            // Bad - action-noun style
+            score -= 0.3;
+            issues.push('Action-noun style (should be verb-object)');
+            
+            // Suggest conversion
+            const actionNounToVerb = {
+                'sending': 'Send', 'receiving': 'Receive', 'processing': 'Process',
+                'reviewing': 'Review', 'approving': 'Approve', 'creating': 'Create',
+                'updating': 'Update', 'deleting': 'Delete', 'checking': 'Check',
+                'validation': 'Validate', 'verification': 'Verify', 'calculation': 'Calculate',
+                'notification': 'Notify', 'submission': 'Submit', 'completion': 'Complete',
+                'assignment': 'Assign', 'management': 'Manage', 'preparation': 'Prepare'
+            };
+            
+            const conversion = Object.entries(actionNounToVerb).find(([noun]) => 
+                lastWord.includes(noun.slice(0, -3)) || lastWord === noun
+            );
+            if (conversion) {
+                const otherWords = words.slice(0, -1).join(' ');
+                suggestion = `Try: "${conversion[1]} ${otherWords}"`;
+            } else {
+                suggestion = 'Restructure to verb-object format';
+            }
+        } else if (words.length === 1) {
+            // Single word, not a verb
+            score -= 0.3;
+            issues.push('Single word label - add verb and context');
+            suggestion = `Try: "Process ${label}" or "Review ${label}"`;
+        } else if (!startsWithVerb && words.length >= 2) {
+            // Multiple words but doesn't start with verb
+            score -= 0.2;
+            issues.push('Does not start with action verb');
+            suggestion = `Try starting with: Send, Process, Review, Create, Update, Check...`;
+        }
+        
+        // Check 5: Too short (less than 2 words for tasks)
+        if (words.length < 2 && !isDefault) {
+            score -= 0.1;
+            if (!issues.includes('Single word label - add verb and context')) {
+                issues.push('Label too brief');
+            }
+        }
+        
+        // Check 6: Too long (more than 6 words)
+        if (words.length > 6) {
+            score -= 0.1;
+            issues.push('Label too verbose (>6 words)');
+            suggestion = suggestion || 'Consider shortening the label';
+        }
+        
+        // Check 7: Contains abbreviations (unless common ones)
+        const commonAbbreviations = ['id', 'api', 'url', 'pdf', 'crm', 'erp', 'hr', 'it', 'kpi'];
+        const hasUncommonAbbreviation = words.some(w => 
+            w.length <= 3 && 
+            w === w.toUpperCase() && 
+            !commonAbbreviations.includes(w.toLowerCase())
+        );
+        if (hasUncommonAbbreviation) {
+            score -= 0.1;
+            issues.push('Contains abbreviations - spell out for clarity');
+        }
+        
+        // Ensure score is between 0 and 1
+        score = Math.max(0, Math.min(1, score));
+        
+        return {
+            score,
+            issues,
+            suggestion,
+            isDefault,
+            isVerbObject: startsWithVerb && words.length >= 2,
+            isActionNoun,
+            wordCount: words.length
+        };
+    }
+    
+    // =========================================================================
+    // MAIN SCORING METHOD - Comprehensive Academic Implementation
+    // =========================================================================
+    
     @api
     calculateProcessScore() {
+        // Initialize counters
         let totalCFC = 0;
+        let weightedCFC = 0; // CFC with nesting depth multiplier
         let cfcXOR = 0;
         let cfcOR = 0;
         let cfcAND = 0;
-        let noajs = 0;
-        let noa = 0;
+        let noajs = 0; // Number of Activities, Joins, and Splits
+        let noa = 0;   // Number of Activities only
         let orGatewayCount = 0;
         let gatewayCount = 0;
+        let startEventCount = 0;
+        let endEventCount = 0;
         const issues = [];
+        const gatewayDetails = [];
         
+        // Calculate nesting depths for all gateways
+        const nestingDepths = this.calculateNestingDepths();
+        
+        // Analyze each element
         this.elements.forEach(el => {
             const typeConfig = ELEMENT_TYPES[el.type];
             if (!typeConfig) return;
             
+            // Count NOAJS (exclude annotations, groups, data objects)
             if (!['TextAnnotation', 'Group', 'DataObject', 'DataStore'].includes(el.type)) {
                 noajs++;
             }
             
+            // Count activities (NOA)
             if (el.type.includes('Task') || el.type === 'SubProcess' || el.type === 'CallActivity') {
                 noa++;
             }
             
+            // Count events
+            if (el.type.includes('StartEvent')) startEventCount++;
+            if (el.type === 'EndEvent') endEventCount++;
+            
+            // Analyze gateways
             if (typeConfig.isGateway && typeConfig.cfcFormula) {
                 gatewayCount++;
                 const outgoing = this.getOutgoingFlows(el.id).length;
+                const incoming = this.getIncomingFlows(el.id).length;
+                const nestingLevel = nestingDepths[el.id] || 1;
                 
+                // Only split gateways contribute to CFC
                 if (outgoing > 1) {
-                    const cfc = typeConfig.cfcFormula(outgoing);
-                    totalCFC += cfc;
+                    const baseCfc = typeConfig.cfcFormula(outgoing);
+                    const nestedCfc = baseCfc * nestingLevel; // Signavio methodology
+                    
+                    totalCFC += baseCfc;
+                    weightedCFC += nestedCfc;
+                    
+                    gatewayDetails.push({
+                        elementId: el.id,
+                        name: el.name,
+                        type: typeConfig.cfcType,
+                        fanout: outgoing,
+                        baseCfc,
+                        nestingLevel,
+                        weightedCfc: nestedCfc
+                    });
                     
                     switch (typeConfig.cfcType) {
-                        case 'XOR': cfcXOR += cfc; break;
+                        case 'XOR': 
+                            cfcXOR += baseCfc; 
+                            break;
                         case 'OR':
-                            cfcOR += cfc;
+                            cfcOR += baseCfc;
                             orGatewayCount++;
+                            // Warning for OR gateways with high fan-out
                             if (outgoing >= 3) {
                                 issues.push({
                                     type: 'warning',
                                     elementId: el.id,
                                     elementName: el.name,
-                                    message: `OR gateway "${el.name || 'Unnamed'}" with ${outgoing} paths adds CFC of ${cfc}`,
-                                    severity: 'high'
+                                    message: `OR gateway "${el.name || 'Unnamed'}" with ${outgoing} paths has CFC of ${baseCfc} (exponential!)`,
+                                    severity: 'high',
+                                    guideline: '7PMG G5'
                                 });
                             }
                             break;
-                        case 'AND': cfcAND += cfc; break;
-                        default: break;
+                        case 'AND': 
+                            cfcAND += baseCfc; 
+                            break;
+                        default: 
+                            break;
+                    }
+                    
+                    // Warning for deeply nested gateways
+                    if (nestingLevel >= 3) {
+                        issues.push({
+                            type: 'warning',
+                            elementId: el.id,
+                            elementName: el.name,
+                            message: `Gateway "${el.name || 'Unnamed'}" is nested ${nestingLevel} levels deep (complexity multiplier: ${nestingLevel}x)`,
+                            severity: 'medium',
+                            guideline: '7PMG G4'
+                        });
                     }
                 }
             }
         });
         
+        // Analyze structuredness (7PMG G4)
+        const structuredness = this.analyzeStructuredness();
+        
+        // Add structuredness issues
+        structuredness.unmatchedSplits.forEach(item => {
+            issues.push({
+                type: 'warning',
+                elementId: item.element.id,
+                elementName: item.element.name,
+                message: item.message,
+                severity: 'medium',
+                guideline: '7PMG G4'
+            });
+        });
+        
+        structuredness.unmatchedJoins.forEach(item => {
+            issues.push({
+                type: 'warning',
+                elementId: item.element.id,
+                elementName: item.element.name,
+                message: item.message,
+                severity: 'medium',
+                guideline: '7PMG G4'
+            });
+        });
+        
+        // Analyze handover complexity
+        const handoverComplexity = this.calculateHandoverComplexity();
+        
+        // Analyze naming quality (7PMG G6)
+        const namingQuality = this.analyzeNamingQuality();
+        
+        // Add naming issues
+        namingQuality.issues.forEach(item => {
+            issues.push({
+                type: 'info',
+                elementId: item.elementId,
+                message: `Label "${item.label}": ${item.issue}`,
+                suggestion: item.suggestion,
+                severity: 'low',
+                guideline: '7PMG G6'
+            });
+        });
+        
+        // =====================================================================
+        // ISSUE GENERATION (based on thresholds)
+        // =====================================================================
+        
+        // 7PMG G7: Model size threshold
         if (noajs > 50) {
             issues.push({
                 type: 'error',
                 message: `Model has ${noajs} elements (>50). Error probability exceeds 50%. Consider decomposing.`,
-                severity: 'critical'
+                severity: 'critical',
+                guideline: '7PMG G7'
             });
         } else if (noajs > 33) {
             issues.push({
                 type: 'warning',
                 message: `Model has ${noajs} elements - approaching high complexity threshold (33)`,
-                severity: 'medium'
+                severity: 'medium',
+                guideline: '7PMG G7'
             });
         }
         
+        // 7PMG G5: OR gateway count
         if (orGatewayCount > 2) {
             issues.push({
                 type: 'warning',
-                message: `Model has ${orGatewayCount} OR gateways. Consider reducing (7PMG G5)`,
-                severity: 'medium'
+                message: `Model has ${orGatewayCount} OR gateways. Consider replacing with XOR or AND.`,
+                severity: 'medium',
+                guideline: '7PMG G5'
             });
         }
         
+        // CFC threshold
         if (totalCFC > 9) {
             issues.push({
                 type: 'warning',
                 message: `Control-Flow Complexity (CFC) of ${totalCFC} exceeds threshold (9)`,
-                severity: 'high'
+                severity: 'high',
+                guideline: 'Cardoso CFC'
             });
         }
         
-        const dimensions = this.calculateDimensionScores({ totalCFC, noajs, noa, gatewayCount, orGatewayCount });
+        // Weighted CFC threshold (with nesting)
+        if (weightedCFC > 15) {
+            issues.push({
+                type: 'warning',
+                message: `Weighted CFC (with nesting) of ${weightedCFC} indicates deeply nested complexity`,
+                severity: 'high',
+                guideline: 'Signavio Flow'
+            });
+        }
         
-        const totalScore = Math.round(
-            dimensions.structural * 0.20 +
-            dimensions.controlFlow * 0.30 +
-            dimensions.correctness * 0.25 +
-            dimensions.naming * 0.15 +
-            dimensions.modularity * 0.10
-        );
+        // 7PMG G3: Multiple start/end events
+        if (startEventCount > 1) {
+            issues.push({
+                type: 'warning',
+                message: `Model has ${startEventCount} start events. Consider using single entry point.`,
+                severity: 'low',
+                guideline: '7PMG G3'
+            });
+        }
+        if (endEventCount > 1) {
+            issues.push({
+                type: 'info',
+                message: `Model has ${endEventCount} end events. Consider if single exit point is feasible.`,
+                severity: 'low',
+                guideline: '7PMG G3'
+            });
+        }
         
-        const grade = this.getGrade(totalScore);
-        const gradeColors = { 'A': '#22C55E', 'B': '#84CC16', 'C': '#EAB308', 'D': '#F97316', 'F': '#DC2626' };
+        // Structuredness score
+        if (structuredness.score < 70) {
+            issues.push({
+                type: 'warning',
+                message: `Model structuredness is ${structuredness.score}%. Consider matching splits with joins.`,
+                severity: 'medium',
+                guideline: '7PMG G4'
+            });
+        }
         
-        return {
-            total: totalScore,
-            grade,
-            gradeColor: gradeColors[grade],
-            cfc: totalCFC,
-            cfcBreakdown: { xor: cfcXOR, or: cfcOR, and: cfcAND },
+        // =====================================================================
+        // DIMENSION SCORES CALCULATION
+        // =====================================================================
+        
+        const dimensions = this.calculateDimensionScores({
+            totalCFC,
+            weightedCFC,
             noajs,
             noa,
             gatewayCount,
+            orGatewayCount,
+            structurednessScore: structuredness.score,
+            handoverScore: handoverComplexity.normalizedScore,
+            namingScore: namingQuality.overallScore,
+            startEventCount,
+            endEventCount
+        });
+        
+        // Calculate weighted total score
+        const totalScore = Math.round(
+            dimensions.structural * 0.15 +
+            dimensions.controlFlow * 0.25 +
+            dimensions.structuredness * 0.20 +
+            dimensions.naming * 0.15 +
+            dimensions.modularity * 0.10 +
+            dimensions.startEnd * 0.05 +
+            dimensions.handover * 0.10
+        );
+        
+        const grade = this.getGrade(totalScore);
+        const gradeColors = { 
+            'A': '#22C55E', 
+            'B': '#84CC16', 
+            'C': '#EAB308', 
+            'D': '#F97316', 
+            'F': '#DC2626' 
+        };
+        
+        // Sort issues by severity
+        const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+        issues.sort((a, b) => (severityOrder[a.severity] || 4) - (severityOrder[b.severity] || 4));
+        
+        return {
+            // Overall scores
+            total: totalScore,
+            grade,
+            gradeColor: gradeColors[grade],
+            
+            // CFC metrics
+            cfc: totalCFC,
+            weightedCfc: weightedCFC,
+            cfcBreakdown: { xor: cfcXOR, or: cfcOR, and: cfcAND },
+            
+            // Element counts
+            noajs,
+            noa,
+            gatewayCount,
+            startEventCount,
+            endEventCount,
+            
+            // Dimension scores
             dimensions,
+            
+            // Detailed analysis
+            nestingDepths,
+            gatewayDetails,
+            structuredness,
+            handoverComplexity,
+            namingQuality,
+            
+            // Issues and warnings
             issues,
+            
+            // Thresholds for UI
             thresholds: {
                 cfc: totalCFC <= 3 ? 'low' : totalCFC <= 9 ? 'moderate' : 'high',
+                weightedCfc: weightedCFC <= 5 ? 'low' : weightedCFC <= 15 ? 'moderate' : 'high',
                 noajs: noajs <= 17 ? 'low' : noajs <= 33 ? 'moderate' : 'high',
-                noa: noa <= 12 ? 'low' : noa <= 26 ? 'moderate' : 'high'
+                noa: noa <= 12 ? 'low' : noa <= 26 ? 'moderate' : 'high',
+                structuredness: structuredness.score >= 80 ? 'low' : structuredness.score >= 50 ? 'moderate' : 'high',
+                naming: namingQuality.overallScore >= 80 ? 'low' : namingQuality.overallScore >= 50 ? 'moderate' : 'high'
+            },
+            
+            // Academic compliance flags
+            compliance: {
+                cardosoCFC: true,
+                mendling7PMG: true,
+                signavioNesting: true,
+                signavioHandover: handoverComplexity.hasRoleData
             }
         };
     }
     
-    calculateDimensionScores({ totalCFC, noajs, noa, gatewayCount, orGatewayCount }) {
+    /**
+     * Calculate dimension scores based on comprehensive metrics
+     */
+    calculateDimensionScores({ 
+        totalCFC, 
+        weightedCFC,
+        noajs, 
+        noa, 
+        gatewayCount, 
+        orGatewayCount,
+        structurednessScore,
+        handoverScore,
+        namingScore,
+        startEventCount,
+        endEventCount
+    }) {
+        // Structural (7PMG G1): Element count
+        // 0-17: 100%, 17-33: linear decrease to 60%, 33-50: decrease to 20%, >50: 0-20%
         const structural = Math.max(0, Math.min(100, 
             noajs <= 17 ? 100 :
             noajs <= 33 ? 100 - ((noajs - 17) / 16) * 40 :
@@ -445,38 +1231,57 @@ export default class ProcessCanvas extends LightningElement {
             20 - Math.min(20, (noajs - 50) * 2)
         ));
         
+        // Control Flow (Cardoso CFC + Signavio nesting)
+        // Uses weighted CFC which includes nesting depth multiplier
+        // 0-5: 100%, 5-15: linear decrease to 50%, 15-30: decrease to 0%
         const controlFlow = Math.max(0, Math.min(100,
-            totalCFC <= 3 ? 100 :
-            totalCFC <= 9 ? 100 - ((totalCFC - 3) / 6) * 30 :
-            totalCFC <= 20 ? 70 - ((totalCFC - 9) / 11) * 50 :
-            20 - Math.min(20, (totalCFC - 20) * 2)
+            weightedCFC <= 5 ? 100 :
+            weightedCFC <= 15 ? 100 - ((weightedCFC - 5) / 10) * 50 :
+            weightedCFC <= 30 ? 50 - ((weightedCFC - 15) / 15) * 50 :
+            0
         ));
         
-        const correctness = Math.max(0, 100 - (orGatewayCount * 10));
+        // Structuredness (7PMG G4): Split/join matching
+        // Directly use the structuredness score (0-100)
+        const structuredness = structurednessScore;
         
-        const defaultNames = ['Start', 'End', 'Task', 'Gateway', 'Parallel', 'Inclusive', 'Event', 'Service Task', 'Script Task', 'Manual Task', 'Sub-Process'];
-        const elementsWithLabels = this.elements.filter(el => 
-            el.name && !defaultNames.includes(el.name) && el.name.trim() !== ''
-        ).length;
-        const naming = this.elements.length > 0 
-            ? Math.round((elementsWithLabels / this.elements.length) * 100)
-            : 100;
+        // Naming (7PMG G6): Verb-object labels
+        // Directly use the naming quality score (0-100)
+        const naming = namingScore;
         
+        // Modularity (7PMG G7): Model decomposition
+        // Penalize models that are too large for single view
         const modularity = Math.max(0, Math.min(100,
             noajs <= 30 ? 100 :
             noajs <= 50 ? 100 - ((noajs - 30) / 20) * 50 :
             50 - Math.min(50, (noajs - 50) * 2)
         ));
         
+        // Start/End (7PMG G3): Single entry/exit
+        // 100% for single start and end, deduct for multiples
+        let startEnd = 100;
+        if (startEventCount > 1) startEnd -= (startEventCount - 1) * 15;
+        if (endEventCount > 2) startEnd -= (endEventCount - 2) * 10;
+        startEnd = Math.max(0, startEnd);
+        
+        // Handover (Signavio): Role transitions
+        // Inverse of handover score (lower handovers = better)
+        const handover = Math.max(0, 100 - (handoverScore * 10));
+        
         return {
             structural: Math.round(structural),
             controlFlow: Math.round(controlFlow),
-            correctness: Math.round(correctness),
+            structuredness: Math.round(structuredness),
             naming: Math.round(naming),
-            modularity: Math.round(modularity)
+            modularity: Math.round(modularity),
+            startEnd: Math.round(startEnd),
+            handover: Math.round(handover)
         };
     }
     
+    /**
+     * Convert score to letter grade
+     */
     getGrade(score) {
         if (score >= 90) return 'A';
         if (score >= 80) return 'B';
@@ -485,10 +1290,14 @@ export default class ProcessCanvas extends LightningElement {
         return 'F';
     }
     
+    /**
+     * Get CFC badge color for visual indicators
+     * Traffic light: Yellow (low), Orange (medium), Red (high)
+     */
     getCfcBadgeColor(cfc) {
-        if (cfc >= 7) return '#DC2626';
-        if (cfc >= 4) return '#F97316';
-        if (cfc >= 1) return '#EAB308';
+        if (cfc >= 7) return '#DC2626';  // Red - High
+        if (cfc >= 4) return '#F97316';  // Orange - Medium
+        if (cfc >= 1) return '#EAB308';  // Yellow - Low
         return null;
     }
     
