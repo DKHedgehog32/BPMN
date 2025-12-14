@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Duration_Hours__c</fullName>
+    <description>Expected average duration to complete this task in hours. Used for process time analysis and simulation.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>How long should this step typically take? (in hours)</inlineHelpText>
+    <label>Duration (Hours)</label>
+    <precision>8</precision>
+    <required>false</required>
+    <scale>2</scale>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

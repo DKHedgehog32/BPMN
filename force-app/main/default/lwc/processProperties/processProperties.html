@@ -1,0 +1,231 @@
+<!--
+  @description: Properties panel template for selected BPMN elements
+  @author: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+  @date: 2024-12-12
+  @version: 1.0.0
+  
+  EXPLANATION:
+  Template for the properties panel that displays different fields
+  based on the type of selected element or connection.
+  
+  CHANGELOG:
+  Version | Date       | Author | Description
+  ---------|------------|--------|------------------------------------------
+  1.0.0   | 2024-12-12 | DvM    | Initial creation
+-->
+<template>
+    <div class="properties-container">
+        <!-- Header -->
+        <div class="properties-header">
+            <lightning-icon icon-name={selectionIcon} size="small"></lightning-icon>
+            <h3 class="properties-title">{selectionTitle}</h3>
+        </div>
+        
+        <!-- No Selection State -->
+        <template if:false={hasSelection}>
+            <div class="no-selection">
+                <lightning-icon icon-name="utility:touch_action" size="large" class="no-selection-icon"></lightning-icon>
+                <p class="no-selection-text">Select an element or connection to view and edit its properties</p>
+            </div>
+        </template>
+        
+        <!-- Element Properties -->
+        <template if:true={isElementSelected}>
+            <div class="properties-content">
+                <!-- General Section -->
+                <div class="properties-section">
+                    <h4 class="section-title">General</h4>
+                    
+                    <lightning-input
+                        label="Name"
+                        value={elementName}
+                        onchange={handleNameChange}
+                        disabled={readOnly}
+                        class="property-field"
+                    ></lightning-input>
+                    
+                    <lightning-textarea
+                        label="Description"
+                        value={elementDescription}
+                        onchange={handleDescriptionChange}
+                        disabled={readOnly}
+                        max-length="1000"
+                        class="property-field"
+                    ></lightning-textarea>
+                </div>
+                
+                <!-- Task Properties (only for task types) -->
+                <template if:true={showTaskFields}>
+                    <div class="properties-section">
+                        <h4 class="section-title">Task Details</h4>
+                        
+                        <lightning-input
+                            label="Assigned Role"
+                            value={elementAssignedRole}
+                            onchange={handleAssignedRoleChange}
+                            disabled={readOnly}
+                            placeholder="e.g., Manager, Approver"
+                            class="property-field"
+                        ></lightning-input>
+                        
+                        <div class="field-row">
+                            <lightning-input
+                                type="number"
+                                label="Duration (hours)"
+                                value={elementDurationHours}
+                                onchange={handleDurationChange}
+                                disabled={readOnly}
+                                min="0"
+                                step="0.5"
+                                class="property-field half"
+                            ></lightning-input>
+                            
+                            <lightning-input
+                                type="number"
+                                label="SLA (hours)"
+                                value={elementSlaHours}
+                                onchange={handleSlaChange}
+                                disabled={readOnly}
+                                min="0"
+                                step="0.5"
+                                class="property-field half"
+                            ></lightning-input>
+                        </div>
+                    </div>
+                </template>
+                
+                <!-- Position & Size Section -->
+                <div class="properties-section">
+                    <h4 class="section-title">Position & Size</h4>
+                    
+                    <div class="field-row">
+                        <lightning-input
+                            type="number"
+                            label="X"
+                            value={elementPositionX}
+                            onchange={handlePositionXChange}
+                            disabled={readOnly}
+                            class="property-field half"
+                        ></lightning-input>
+                        
+                        <lightning-input
+                            type="number"
+                            label="Y"
+                            value={elementPositionY}
+                            onchange={handlePositionYChange}
+                            disabled={readOnly}
+                            class="property-field half"
+                        ></lightning-input>
+                    </div>
+                    
+                    <div class="field-row">
+                        <lightning-input
+                            type="number"
+                            label="Width"
+                            value={elementWidth}
+                            onchange={handleWidthChange}
+                            disabled={readOnly}
+                            min="20"
+                            class="property-field half"
+                        ></lightning-input>
+                        
+                        <lightning-input
+                            type="number"
+                            label="Height"
+                            value={elementHeight}
+                            onchange={handleHeightChange}
+                            disabled={readOnly}
+                            min="20"
+                            class="property-field half"
+                        ></lightning-input>
+                    </div>
+                </div>
+                
+                <!-- Actions -->
+                <template if:false={readOnly}>
+                    <div class="properties-actions">
+                        <lightning-button
+                            label="Duplicate"
+                            icon-name="utility:copy"
+                            onclick={handleDuplicate}
+                            class="action-button"
+                        ></lightning-button>
+                        <lightning-button
+                            label="Delete"
+                            icon-name="utility:delete"
+                            variant="destructive"
+                            onclick={handleDelete}
+                            class="action-button"
+                        ></lightning-button>
+                    </div>
+                </template>
+            </div>
+        </template>
+        
+        <!-- Connection Properties -->
+        <template if:true={isConnectionSelected}>
+            <div class="properties-content">
+                <!-- General Section -->
+                <div class="properties-section">
+                    <h4 class="section-title">Connection</h4>
+                    
+                    <lightning-combobox
+                        label="Type"
+                        value={connectionType}
+                        options={connectionTypeOptions}
+                        onchange={handleConnectionTypeChange}
+                        disabled={readOnly}
+                        class="property-field"
+                    ></lightning-combobox>
+                    
+                    <lightning-input
+                        label="Label"
+                        value={connectionLabel}
+                        onchange={handleConnectionLabelChange}
+                        disabled={readOnly}
+                        placeholder="Flow label (optional)"
+                        class="property-field"
+                    ></lightning-input>
+                </div>
+                
+                <!-- Condition Section -->
+                <template if:true={showConditionField}>
+                    <div class="properties-section">
+                        <h4 class="section-title">Condition</h4>
+                        
+                        <lightning-textarea
+                            label="Condition Expression"
+                            value={connectionCondition}
+                            onchange={handleConditionChange}
+                            disabled={readOnly}
+                            placeholder="e.g., ${amount > 1000}"
+                            class="property-field"
+                        ></lightning-textarea>
+                        
+                        <lightning-input
+                            type="checkbox"
+                            label="Default Flow"
+                            checked={connectionIsDefault}
+                            onchange={handleIsDefaultChange}
+                            disabled={readOnly}
+                            class="property-field"
+                        ></lightning-input>
+                    </div>
+                </template>
+                
+                <!-- Actions -->
+                <template if:false={readOnly}>
+                    <div class="properties-actions">
+                        <lightning-button
+                            label="Delete Connection"
+                            icon-name="utility:delete"
+                            variant="destructive"
+                            onclick={handleDelete}
+                            class="action-button full-width"
+                        ></lightning-button>
+                    </div>
+                </template>
+            </div>
+        </template>
+    </div>
+</template>

@@ -1,0 +1,221 @@
+/**
+ * @description Styles for the BPMN Canvas POC component
+ * @author Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+ * @date 2024-12-10
+ * @version 1.0.1
+ * 
+ * EXPLANATION:
+ * Provides styling for the SVG canvas, shapes, connections, and UI elements.
+ * Uses SLDS-compatible colors where possible. Implements visual feedback
+ * for selection states, hover effects, and interaction modes.
+ * 
+ * CHANGELOG:
+ * Version | Date       | Author | Description
+ * --------|------------|--------|------------------------------------------
+ * 1.0.0   | 2024-12-10 | DvM    | Initial POC styles
+ * 1.0.1   | 2024-12-10 | DvM    | Added test grid and POC summary styles
+ */
+
+/* ========================================================================
+   TOOLBAR
+   ======================================================================== */
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    background-color: #f3f3f3;
+}
+
+.toolbar-info {
+    margin-left: auto;
+    color: #706e6b;
+}
+
+/* ========================================================================
+   CANVAS CONTAINER
+   ======================================================================== */
+
+.canvas-container {
+    position: relative;
+    width: 100%;
+    height: 500px;
+    overflow: hidden;
+    background-color: #fafafa;
+    cursor: default;
+}
+
+/* ========================================================================
+   SVG CANVAS
+   ======================================================================== */
+
+.bpmn-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.canvas-grid {
+    pointer-events: none;
+}
+
+/* ========================================================================
+   SHAPES
+   ======================================================================== */
+
+.shape-group {
+    cursor: move;
+}
+
+.shape-group:hover {
+    filter: brightness(0.95);
+}
+
+.shape-group.selected .shape-body {
+    filter: drop-shadow(0 0 6px rgba(1, 118, 211, 0.6));
+}
+
+.shape-body {
+    transition: stroke 0.15s ease, stroke-width 0.15s ease;
+}
+
+.shape-label {
+    pointer-events: none;
+    user-select: none;
+    font-family: 'Salesforce Sans', Arial, sans-serif;
+}
+
+/* ========================================================================
+   CONNECTION ANCHORS
+   ======================================================================== */
+
+.anchor {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    cursor: crosshair;
+}
+
+.shape-group:hover .anchor {
+    opacity: 0.7;
+}
+
+/* ========================================================================
+   CONNECTIONS
+   ======================================================================== */
+
+.connection {
+    pointer-events: stroke;
+}
+
+.connection-path {
+    transition: stroke 0.15s ease;
+}
+
+.connection:hover .connection-path {
+    stroke: #0176d3;
+    stroke-width: 3;
+}
+
+.temp-connection {
+    pointer-events: none;
+    display: none;
+}
+
+/* ========================================================================
+   PROPERTIES PANEL
+   ======================================================================== */
+
+.properties-panel {
+    background-color: #f7f7f7;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* ========================================================================
+   TEST RESULTS
+   ======================================================================== */
+
+.test-results {
+    background-color: #f0f0f0;
+}
+
+.test-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.5rem;
+}
+
+.test-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    background: white;
+    border-radius: 4px;
+    font-size: 0.8125rem;
+}
+
+.test-item.pending {
+    color: #706e6b;
+}
+
+.test-item.passed {
+    color: #2e844a;
+    background-color: #e6f7e9;
+}
+
+.test-item.failed {
+    color: #c23934;
+    background-color: #fce4e4;
+}
+
+/* ========================================================================
+   POC SUMMARY
+   ======================================================================== */
+
+.poc-summary {
+    background: linear-gradient(135deg, #02033B 0%, #1a1a4e 100%);
+    color: white;
+}
+
+.poc-result {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-top: 0.5rem;
+}
+
+.poc-go {
+    color: #4ade80;
+}
+
+.poc-nogo {
+    color: #f87171;
+}
+
+.poc-testing {
+    color: #fbbf24;
+}
+
+/* ========================================================================
+   RESPONSIVE ADJUSTMENTS
+   ======================================================================== */
+
+@media (max-width: 768px) {
+    .toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .toolbar-info {
+        margin-left: 0;
+        margin-top: 0.5rem;
+    }
+    
+    .canvas-container {
+        height: 400px;
+    }
+    
+    .test-grid {
+        grid-template-columns: 1fr;
+    }
+}

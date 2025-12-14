@@ -1,0 +1,387 @@
+<!--
+  @description: SVG Canvas template for BPMN process diagram editor - POC Style
+  @author: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+  @date: 2024-12-12
+  @version: 1.0.2
+  
+  EXPLANATION:
+  This template renders the interactive SVG canvas for BPMN diagrams.
+  POC-style design with:
+  - Labels BELOW elements (not overlapping)
+  - Icons centered within elements  
+  - Blue stroke overlay when selected (not dashed box)
+  - Connection points on shape edges/corners
+  
+  CHANGELOG:
+  Version | Date       | Author | Description
+  ---------|------------|--------|------------------------------------------
+  1.0.0   | 2024-12-12 | DvM    | Initial creation - core canvas template
+  1.0.1   | 2024-12-12 | DvM    | Fixed: moved all inline expressions to JS getters
+  1.0.2   | 2024-12-12 | DvM    | Fixed: POC-style labels, icons, selection
+-->
+<template>
+    <div class="canvas-container" tabindex="0">
+        <!-- SVG Canvas -->
+        <svg 
+            class="canvas-svg"
+            viewBox={viewBoxString}
+            onmousedown={handleCanvasMouseDown}
+            onmousemove={handleCanvasMouseMove}
+            onmouseup={handleCanvasMouseUp}
+            onwheel={handleCanvasWheel}
+            ondragover={handleCanvasDragOver}
+            ondrop={handleCanvasDrop}
+        >
+            <!-- SVG Definitions -->
+            <defs>
+                <!-- Arrow marker for connections -->
+                <marker
+                    id="arrowhead"
+                    markerWidth="10"
+                    markerHeight="7"
+                    orient="auto"
+                    viewBox="0 0 10 7"
+                >
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#2D3748"></polygon>
+                </marker>
+                
+            </defs>
+            
+            <!-- Background for click/pan handling (dots rendered via CSS) -->
+            <rect 
+                class="canvas-background"
+                x="-10000" 
+                y="-10000" 
+                width="20000" 
+                height="20000" 
+                fill="rgba(0,0,0,0)"
+            ></rect>
+            
+            <!-- Connections (rendered behind elements) -->
+            <g class="connections-layer">
+                <template for:each={renderedConnections} for:item="conn">
+                    <g key={conn.id} class={conn.cssClass} data-id={conn.id} onclick={handleConnectionClick}>
+                        <!-- Invisible wider path for easier clicking -->
+                        <path 
+                            d={conn.path} 
+                            fill="none" 
+                            stroke="transparent" 
+                            stroke-width="15"
+                            class="connection-hitarea"
+                        ></path>
+                        <!-- Visible connection line -->
+                        <path 
+                            d={conn.path} 
+                            fill="none" 
+                            stroke={conn.stroke}
+                            stroke-width={conn.strokeWidth}
+                            stroke-dasharray={conn.dashArray}
+                            marker-end="url(#arrowhead)"
+                            class="connection-line"
+                        ></path>
+                    </g>
+                </template>
+            </g>
+            
+            <!-- Temporary connection line (when creating new connection) -->
+            <template if:true={isConnecting}>
+                <line 
+                    class="temp-connection"
+                    x1={tempLineX1}
+                    y1={tempLineY1}
+                    x2={tempLineX2}
+                    y2={tempLineY2}
+                    stroke="#3182CE"
+                    stroke-width="2"
+                    stroke-dasharray="5,5"
+                    marker-end="url(#arrowhead)"
+                ></line>
+            </template>
+            
+            <!-- Elements -->
+            <g class="elements-layer">
+                <template for:each={renderedElements} for:item="el">
+                    <g 
+                        key={el.id} 
+                        class={el.cssClass}
+                        data-id={el.id}
+                        onmousedown={handleElementMouseDown}
+                        ondblclick={handleElementDoubleClick}
+                    >
+                        <!-- ============================================ -->
+                        <!-- CIRCLE SHAPES (Events) -->
+                        <!-- ============================================ -->
+                        <template if:true={el.isCircle}>
+                            <!-- Selection: Blue stroke overlay (POC style) -->
+                            <template if:true={el.isSelected}>
+                                <circle
+                                    cx={el.centerX}
+                                    cy={el.centerY}
+                                    r={el.radius}
+                                    fill="none"
+                                    stroke="#3182CE"
+                                    stroke-width="4"
+                                    class="selection-stroke"
+                                ></circle>
+                            </template>
+                            
+                            <!-- Main circle -->
+                            <circle
+                                cx={el.centerX}
+                                cy={el.centerY}
+                                r={el.radius}
+                                fill={el.fill}
+                                stroke={el.stroke}
+                                stroke-width={el.strokeWidth}
+                            ></circle>
+                            
+                            <!-- Double circle for intermediate events -->
+                            <template if:true={el.double}>
+                                <circle
+                                    cx={el.centerX}
+                                    cy={el.centerY}
+                                    r={el.innerRadius}
+                                    fill="none"
+                                    stroke={el.stroke}
+                                    stroke-width="1"
+                                ></circle>
+                            </template>
+                            
+                            <!-- Timer icon (centered clock) -->
+                            <template if:true={el.showTimerIcon}>
+                                <circle 
+                                    cx={el.centerX} 
+                                    cy={el.centerY} 
+                                    r="12" 
+                                    fill="none" 
+                                    stroke="#2D3748" 
+                                    stroke-width="1.5"
+                                ></circle>
+                                <path 
+                                    d={el.timerHandV}
+                                    stroke="#2D3748" 
+                                    stroke-width="1.5"
+                                    stroke-linecap="round"
+                                ></path>
+                                <path 
+                                    d={el.timerHandH}
+                                    stroke="#2D3748" 
+                                    stroke-width="1.5"
+                                    stroke-linecap="round"
+                                ></path>
+                            </template>
+                            
+                            <!-- Message icon (centered envelope) -->
+                            <template if:true={el.showMessageIcon}>
+                                <rect 
+                                    x={el.messageX} 
+                                    y={el.messageY} 
+                                    width={el.messageWidth} 
+                                    height={el.messageHeight} 
+                                    rx="1" 
+                                    fill="none" 
+                                    stroke="#2D3748" 
+                                    stroke-width="1.5"
+                                ></rect>
+                                <path 
+                                    d={el.messagePath}
+                                    fill="none" 
+                                    stroke="#2D3748" 
+                                    stroke-width="1.5"
+                                ></path>
+                            </template>
+                        </template>
+                        
+                        <!-- ============================================ -->
+                        <!-- RECTANGLE SHAPES (Tasks) -->
+                        <!-- ============================================ -->
+                        <template if:true={el.isRect}>
+                            <!-- Selection: Blue stroke overlay (POC style) -->
+                            <template if:true={el.isSelected}>
+                                <rect
+                                    x={el.x}
+                                    y={el.y}
+                                    width={el.width}
+                                    height={el.height}
+                                    fill="none"
+                                    stroke="#3182CE"
+                                    stroke-width="4"
+                                    rx={el.rx}
+                                    class="selection-stroke"
+                                ></rect>
+                            </template>
+                            
+                            <!-- Main rectangle -->
+                            <rect
+                                x={el.x}
+                                y={el.y}
+                                width={el.width}
+                                height={el.height}
+                                fill={el.fill}
+                                stroke={el.stroke}
+                                stroke-width={el.strokeWidth}
+                                rx={el.rx}
+                                stroke-dasharray={el.strokeDasharray}
+                            ></rect>
+                            
+                            <!-- Task label (inside, centered) -->
+                            <text
+                                x={el.centerX}
+                                y={el.centerY}
+                                text-anchor="middle"
+                                dominant-baseline="middle"
+                                class="element-label"
+                            >
+                                {el.name}
+                            </text>
+                            
+                            <!-- Task type icons (top-left corner) -->
+                            <template if:true={el.showUserIcon}>
+                                <g transform={el.iconTransform}>
+                                    <circle cx="10" cy="7" r="4" fill="none" stroke="#4A5568" stroke-width="1.5"></circle>
+                                    <path d="M3 19c0-4 3-6 7-6s7 2 7 6" fill="none" stroke="#4A5568" stroke-width="1.5"></path>
+                                </g>
+                            </template>
+                            <template if:true={el.showServiceIcon}>
+                                <g transform={el.iconTransform}>
+                                    <circle cx="10" cy="10" r="5" fill="none" stroke="#4A5568" stroke-width="1.5"></circle>
+                                    <path d="M10 2v3M10 15v3M2 10h3M15 10h3" fill="none" stroke="#4A5568" stroke-width="1.5"></path>
+                                </g>
+                            </template>
+                            <template if:true={el.showScriptIcon}>
+                                <g transform={el.iconTransform}>
+                                    <path d="M3 1h10l4 4v14H3z" fill="none" stroke="#4A5568" stroke-width="1.5"></path>
+                                    <path d="M6 8h8M6 12h6" fill="none" stroke="#4A5568" stroke-width="1"></path>
+                                </g>
+                            </template>
+                        </template>
+                        
+                        <!-- ============================================ -->
+                        <!-- DIAMOND SHAPES (Gateways) -->
+                        <!-- ============================================ -->
+                        <template if:true={el.isDiamond}>
+                            <!-- Selection: Blue stroke overlay following diamond shape -->
+                            <template if:true={el.isSelected}>
+                                <polygon
+                                    points={el.diamondPoints}
+                                    fill="none"
+                                    stroke="#3182CE"
+                                    stroke-width="4"
+                                    class="selection-stroke"
+                                ></polygon>
+                            </template>
+                            
+                            <!-- Main diamond -->
+                            <polygon
+                                points={el.diamondPoints}
+                                fill={el.fill}
+                                stroke={el.stroke}
+                                stroke-width={el.strokeWidth}
+                            ></polygon>
+                            
+                            <!-- X icon for Exclusive Gateway (centered) -->
+                            <template if:true={el.isXIcon}>
+                                <path
+                                    d={el.xIconPath}
+                                    fill="none"
+                                    stroke="#2D3748"
+                                    stroke-width="3"
+                                    stroke-linecap="round"
+                                ></path>
+                            </template>
+                            
+                            <!-- Plus icon for Parallel Gateway (centered) -->
+                            <template if:true={el.isPlusIcon}>
+                                <path
+                                    d={el.plusIconPath}
+                                    fill="none"
+                                    stroke="#2D3748"
+                                    stroke-width="3"
+                                    stroke-linecap="round"
+                                ></path>
+                            </template>
+                            
+                            <!-- Circle icon for Inclusive Gateway (centered) -->
+                            <template if:true={el.isCircleIcon}>
+                                <circle
+                                    cx={el.centerX}
+                                    cy={el.centerY}
+                                    r={el.circleIconRadius}
+                                    fill="none"
+                                    stroke="#2D3748"
+                                    stroke-width="3"
+                                ></circle>
+                            </template>
+                        </template>
+                        
+                        <!-- ============================================ -->
+                        <!-- LABEL BELOW ELEMENT (for events & gateways) -->
+                        <!-- ============================================ -->
+                        <template if:false={el.labelInside}>
+                            <text
+                                x={el.labelX}
+                                y={el.labelY}
+                                text-anchor="middle"
+                                dominant-baseline="hanging"
+                                class="element-label"
+                            >
+                                {el.name}
+                            </text>
+                        </template>
+                        
+                        <!-- ============================================ -->
+                        <!-- CONNECTION POINTS (shown when selected) -->
+                        <!-- ============================================ -->
+                        <template if:true={el.isSelected}>
+                            <!-- Top -->
+                            <circle
+                                cx={el.connPointTopX}
+                                cy={el.connPointTopY}
+                                r="6"
+                                class="connection-point"
+                                data-elementid={el.id}
+                                data-position="top"
+                                onmousedown={handleConnectionPointMouseDown}
+                            ></circle>
+                            <!-- Right -->
+                            <circle
+                                cx={el.connPointRightX}
+                                cy={el.connPointRightY}
+                                r="6"
+                                class="connection-point"
+                                data-elementid={el.id}
+                                data-position="right"
+                                onmousedown={handleConnectionPointMouseDown}
+                            ></circle>
+                            <!-- Bottom -->
+                            <circle
+                                cx={el.connPointBottomX}
+                                cy={el.connPointBottomY}
+                                r="6"
+                                class="connection-point"
+                                data-elementid={el.id}
+                                data-position="bottom"
+                                onmousedown={handleConnectionPointMouseDown}
+                            ></circle>
+                            <!-- Left -->
+                            <circle
+                                cx={el.connPointLeftX}
+                                cy={el.connPointLeftY}
+                                r="6"
+                                class="connection-point"
+                                data-elementid={el.id}
+                                data-position="left"
+                                onmousedown={handleConnectionPointMouseDown}
+                            ></circle>
+                        </template>
+                    </g>
+                </template>
+            </g>
+        </svg>
+        
+        <!-- Zoom indicator -->
+        <div class="zoom-indicator">
+            {zoomPercentage}%
+        </div>
+    </div>
+</template>

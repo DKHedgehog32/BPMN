@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+================================================================================
+  OBJECT: BPMN_Element__c
+  DESCRIPTION: Individual shapes/nodes in a BPMN process diagram
+  
+  AUTHOR: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+  CREATED: 2024-12-12
+  VERSION: 1.0.0
+  API VERSION: 62.0
+  
+  EXPLANATION:
+  ============
+  This object stores individual BPMN elements (shapes) that appear on a process
+  diagram. While Canvas_JSON__c on Process__c is the source of truth for the
+  visual editor, these records enable:
+  
+  - Native Salesforce reporting on process elements
+  - SOQL queries across processes (e.g., find all Approval tasks)
+  - Linking process steps to other Salesforce records
+  - Process metrics and analytics
+  - Version comparison
+  
+  BPMN 2.0 ELEMENT TYPES:
+  =======================
+  Events: StartEvent, EndEvent, IntermediateEvent, TimerEvent, MessageEvent
+  Activities: UserTask, ServiceTask, ManualTask, SubProcess, CallActivity
+  Gateways: ExclusiveGateway (XOR), ParallelGateway (AND), InclusiveGateway (OR)
+  Data: DataObject, DataStore
+  Swimlanes: Pool, Lane
+  Artifacts: TextAnnotation
+  
+  RELATIONSHIPS:
+  ==============
+  - Process__c (Master-Detail) - Parent process
+  - Outgoing_Connections (Lookup from BPMN_Connection__c)
+  - Incoming_Connections (Lookup from BPMN_Connection__c)
+-->
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionOverrides>
+        <actionName>Accept</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>CancelEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Clone</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Delete</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Edit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>List</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>New</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>SaveEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Tab</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>View</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <allowInChatterGroups>false</allowInChatterGroups>
+    <compactLayoutAssignment>SYSTEM</compactLayoutAssignment>
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Individual BPMN elements (shapes) within a process diagram. Includes events, activities, gateways, and annotations following BPMN 2.0 standard.</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableEnhancedLookup>false</enableEnhancedLookup>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>true</enableHistory>
+    <enableLicensing>false</enableLicensing>
+    <enableReports>true</enableReports>
+    <enableSearch>true</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <label>BPMN Element</label>
+    <nameField>
+        <label>Element Name</label>
+        <trackHistory>true</trackHistory>
+        <type>Text</type>
+    </nameField>
+    <pluralLabel>BPMN Elements</pluralLabel>
+    <sharingModel>ReadWrite</sharingModel>
+    <visibility>Public</visibility>
+</CustomObject>

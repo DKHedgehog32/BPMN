@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Condition__c</fullName>
+    <description>The condition expression for gateway decision paths. Describes when this path should be taken in business terms.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>For gateway paths: describe the condition (e.g., "Amount > $1000", "Customer is VIP").</inlineHelpText>
+    <label>Condition</label>
+    <length>5000</length>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

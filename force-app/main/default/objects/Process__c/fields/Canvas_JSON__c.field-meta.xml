@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Canvas_JSON__c</fullName>
+    <description>JSON representation of the complete BPMN canvas state. This is the source of truth for the diagram editor. Contains all shapes, connections, positions, and styling.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>System field - stores the diagram canvas data. Do not edit manually.</inlineHelpText>
+    <label>Canvas JSON</label>
+    <length>131072</length>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

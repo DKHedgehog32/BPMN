@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Connection_Id__c</fullName>
+    <caseSensitive>false</caseSensitive>
+    <description>Unique identifier used to link this Salesforce record to the corresponding connection in the Canvas_JSON.</description>
+    <externalId>true</externalId>
+    <inlineHelpText>System field - unique ID matching the canvas connection.</inlineHelpText>
+    <label>Connection ID</label>
+    <length>50</length>
+    <required>true</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>true</unique>
+</CustomField>

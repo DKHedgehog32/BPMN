@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Description__c</fullName>
+    <description>Detailed description explaining what types of processes belong in this category and the scope of the category.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Describe what types of processes belong in this category.</inlineHelpText>
+    <label>Description</label>
+    <length>5000</length>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>4</visibleLines>
+</CustomField>

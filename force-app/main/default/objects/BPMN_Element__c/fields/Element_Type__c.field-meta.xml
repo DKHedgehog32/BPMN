@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Element_Type__c</fullName>
+    <description>The BPMN 2.0 element type classification. Determines the visual shape and semantic meaning of the element.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Select the BPMN element type.</inlineHelpText>
+    <label>Element Type</label>
+    <required>true</required>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <!-- ===== EVENTS ===== -->
+            <value>
+                <fullName>StartEvent</fullName>
+                <default>false</default>
+                <label>Start Event</label>
+            </value>
+            <value>
+                <fullName>EndEvent</fullName>
+                <default>false</default>
+                <label>End Event</label>
+            </value>
+            <value>
+                <fullName>IntermediateThrowEvent</fullName>
+                <default>false</default>
+                <label>Intermediate Throw Event</label>
+            </value>
+            <value>
+                <fullName>IntermediateCatchEvent</fullName>
+                <default>false</default>
+                <label>Intermediate Catch Event</label>
+            </value>
+            <value>
+                <fullName>TimerStartEvent</fullName>
+                <default>false</default>
+                <label>Timer Start Event</label>
+            </value>
+            <value>
+                <fullName>TimerIntermediateEvent</fullName>
+                <default>false</default>
+                <label>Timer Intermediate Event</label>
+            </value>
+            <value>
+                <fullName>MessageStartEvent</fullName>
+                <default>false</default>
+                <label>Message Start Event</label>
+            </value>
+            <value>
+                <fullName>MessageIntermediateEvent</fullName>
+                <default>false</default>
+                <label>Message Intermediate Event</label>
+            </value>
+            <value>
+                <fullName>MessageEndEvent</fullName>
+                <default>false</default>
+                <label>Message End Event</label>
+            </value>
+            <value>
+                <fullName>ErrorEndEvent</fullName>
+                <default>false</default>
+                <label>Error End Event</label>
+            </value>
+            <value>
+                <fullName>TerminateEndEvent</fullName>
+                <default>false</default>
+                <label>Terminate End Event</label>
+            </value>
+            <!-- ===== ACTIVITIES ===== -->
+            <value>
+                <fullName>UserTask</fullName>
+                <default>true</default>
+                <label>User Task</label>
+            </value>
+            <value>
+                <fullName>ServiceTask</fullName>
+                <default>false</default>
+                <label>Service Task</label>
+            </value>
+            <value>
+                <fullName>ScriptTask</fullName>
+                <default>false</default>
+                <label>Script Task</label>
+            </value>
+            <value>
+                <fullName>ManualTask</fullName>
+                <default>false</default>
+                <label>Manual Task</label>
+            </value>
+            <value>
+                <fullName>BusinessRuleTask</fullName>
+                <default>false</default>
+                <label>Business Rule Task</label>
+            </value>
+            <value>
+                <fullName>SendTask</fullName>
+                <default>false</default>
+                <label>Send Task</label>
+            </value>
+            <value>
+                <fullName>ReceiveTask</fullName>
+                <default>false</default>
+                <label>Receive Task</label>
+            </value>
+            <value>
+                <fullName>SubProcess</fullName>
+                <default>false</default>
+                <label>Sub-Process</label>
+            </value>
+            <value>
+                <fullName>CallActivity</fullName>
+                <default>false</default>
+                <label>Call Activity</label>
+            </value>
+            <!-- ===== GATEWAYS ===== -->
+            <value>
+                <fullName>ExclusiveGateway</fullName>
+                <default>false</default>
+                <label>Exclusive Gateway (XOR)</label>
+            </value>
+            <value>
+                <fullName>ParallelGateway</fullName>
+                <default>false</default>
+                <label>Parallel Gateway (AND)</label>
+            </value>
+            <value>
+                <fullName>InclusiveGateway</fullName>
+                <default>false</default>
+                <label>Inclusive Gateway (OR)</label>
+            </value>
+            <value>
+                <fullName>EventBasedGateway</fullName>
+                <default>false</default>
+                <label>Event-Based Gateway</label>
+            </value>
+            <value>
+                <fullName>ComplexGateway</fullName>
+                <default>false</default>
+                <label>Complex Gateway</label>
+            </value>
+            <!-- ===== DATA OBJECTS ===== -->
+            <value>
+                <fullName>DataObject</fullName>
+                <default>false</default>
+                <label>Data Object</label>
+            </value>
+            <value>
+                <fullName>DataStore</fullName>
+                <default>false</default>
+                <label>Data Store</label>
+            </value>
+            <value>
+                <fullName>DataInput</fullName>
+                <default>false</default>
+                <label>Data Input</label>
+            </value>
+            <value>
+                <fullName>DataOutput</fullName>
+                <default>false</default>
+                <label>Data Output</label>
+            </value>
+            <!-- ===== SWIMLANES ===== -->
+            <value>
+                <fullName>Pool</fullName>
+                <default>false</default>
+                <label>Pool</label>
+            </value>
+            <value>
+                <fullName>Lane</fullName>
+                <default>false</default>
+                <label>Lane</label>
+            </value>
+            <!-- ===== ARTIFACTS ===== -->
+            <value>
+                <fullName>TextAnnotation</fullName>
+                <default>false</default>
+                <label>Text Annotation</label>
+            </value>
+            <value>
+                <fullName>Group</fullName>
+                <default>false</default>
+                <label>Group</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

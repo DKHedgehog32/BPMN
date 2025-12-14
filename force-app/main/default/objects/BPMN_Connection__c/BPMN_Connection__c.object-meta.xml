@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+================================================================================
+  OBJECT: BPMN_Connection__c
+  DESCRIPTION: Sequence flows connecting BPMN elements in a process
+  
+  AUTHOR: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+  CREATED: 2024-12-12
+  VERSION: 1.0.0
+  API VERSION: 62.0
+  
+  EXPLANATION:
+  ============
+  This object stores the connections (sequence flows) between BPMN elements.
+  Each connection links a source element to a target element, creating the
+  directional flow of the process.
+  
+  Key features:
+  - Source/Target lookups to BPMN_Element__c
+  - Labels for decision paths (Yes/No, Approved/Rejected)
+  - Conditions for gateway logic
+  - Default flow marking for exclusive gateways
+  
+  CONNECTION TYPES:
+  =================
+  - Sequence Flow: Normal process flow (solid arrow)
+  - Conditional Flow: Flow with a condition (diamond + arrow)
+  - Default Flow: Default path from gateway (slash + arrow)
+  - Message Flow: Communication between pools (dashed arrow)
+  - Association: Links artifacts to elements (dotted line)
+  
+  RELATIONSHIPS:
+  ==============
+  - Process__c (Master-Detail) - Parent process
+  - Source_Element__c (Lookup to BPMN_Element__c)
+  - Target_Element__c (Lookup to BPMN_Element__c)
+  
+-->
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionOverrides>
+        <actionName>Accept</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>CancelEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Clone</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Delete</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Edit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>List</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>New</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>SaveEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Tab</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>View</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <allowInChatterGroups>false</allowInChatterGroups>
+    <compactLayoutAssignment>SYSTEM</compactLayoutAssignment>
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Sequence flows (connections) between BPMN elements in a process diagram. Defines the flow direction, conditions, and labels for process paths.</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableEnhancedLookup>false</enableEnhancedLookup>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>false</enableHistory>
+    <enableLicensing>false</enableLicensing>
+    <enableReports>true</enableReports>
+    <enableSearch>false</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <label>BPMN Connection</label>
+    <nameField>
+        <displayFormat>CONN-{00000}</displayFormat>
+        <label>Connection Number</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <pluralLabel>BPMN Connections</pluralLabel>
+    <searchLayouts/>
+    <sharingModel>ReadWrite</sharingModel>
+    <visibility>Public</visibility>
+</CustomObject>

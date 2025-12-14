@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Label__c</fullName>
+    <description>Display label shown on the connection arrow. Commonly used for decision paths (Yes, No, Approved, Rejected).</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Label to display on this connection (e.g., "Yes", "No", "Approved").</inlineHelpText>
+    <label>Label</label>
+    <length>100</length>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

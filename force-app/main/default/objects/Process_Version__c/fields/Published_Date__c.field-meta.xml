@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Published_Date__c</fullName>
+    <description>The date and time when this version was published.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>When was this version published?</inlineHelpText>
+    <label>Published Date</label>
+    <required>true</required>
+    <trackTrending>false</trackTrending>
+    <type>DateTime</type>
+</CustomField>

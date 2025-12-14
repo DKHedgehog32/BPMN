@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+================================================================================
+  OBJECT: Process_Version__c
+  DESCRIPTION: Historical versions of published process diagrams
+  
+  AUTHOR: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+  CREATED: 2024-12-12
+  VERSION: 1.0.0
+  API VERSION: 62.0
+  
+  EXPLANATION:
+  ============
+  This object maintains version history for process diagrams. Each time a
+  process is published, a new version record is created with a snapshot
+  of the canvas state at that point in time.
+  
+  Benefits:
+  - Audit trail of all process changes
+  - Compare versions to see what changed
+  - Restore previous versions if needed
+  - Compliance and change management documentation
+  
+  RELATIONSHIPS:
+  ==============
+  - Process__c (Master-Detail) - Parent process
+  - Published_By__c (Lookup to User) - Who published
+  
+-->
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionOverrides>
+        <actionName>Accept</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>CancelEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Clone</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Delete</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Edit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>List</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>New</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>SaveEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Tab</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>View</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <allowInChatterGroups>false</allowInChatterGroups>
+    <compactLayoutAssignment>SYSTEM</compactLayoutAssignment>
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Historical versions of process diagrams. A new version is created each time a process is published, providing complete audit trail and rollback capability.</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableEnhancedLookup>false</enableEnhancedLookup>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>false</enableHistory>
+    <enableLicensing>false</enableLicensing>
+    <enableReports>true</enableReports>
+    <enableSearch>true</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <label>Process Version</label>
+    <nameField>
+        <displayFormat>VER-{00000}</displayFormat>
+        <label>Version Record</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <pluralLabel>Process Versions</pluralLabel>
+    <searchLayouts/>
+    <sharingModel>ReadWrite</sharingModel>
+    <visibility>Public</visibility>
+</CustomObject>

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+================================================================================
+  OBJECT: Process_Category__c
+  DESCRIPTION: Hierarchical taxonomy for organizing business processes
+  
+  AUTHOR: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+  CREATED: 2024-12-12
+  VERSION: 1.0.0
+  API VERSION: 62.0
+  
+  EXPLANATION:
+  ============
+  This object provides a tree structure for categorizing processes.
+  Categories can be nested via the Parent_Category__c self-lookup field.
+  
+  Example hierarchy:
+  - Operations
+    - Customer Service
+      - Complaint Handling
+      - Returns Processing
+    - Logistics
+  - Finance
+    - Accounts Payable
+    - Accounts Receivable
+  
+  RELATIONSHIPS:
+  ==============
+  - Parent_Category__c (Lookup to Self) - Creates hierarchy
+  - Processes (Child Relationship) - Links to Process__c records
+  
+ ================================================
+-->
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionOverrides>
+        <actionName>Accept</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>CancelEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Clone</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Delete</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Edit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>List</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>New</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>SaveEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Tab</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>View</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <allowInChatterGroups>false</allowInChatterGroups>
+    <compactLayoutAssignment>SYSTEM</compactLayoutAssignment>
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Hierarchical taxonomy for organizing and categorizing business processes in the Process Modeling Studio. Supports nested categories for flexible organization.</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableEnhancedLookup>true</enableEnhancedLookup>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>true</enableHistory>
+    <enableLicensing>false</enableLicensing>
+    <enableReports>true</enableReports>
+    <enableSearch>true</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <externalSharingModel>ReadWrite</externalSharingModel>
+    <label>Process Category</label>
+    <nameField>
+        <label>Category Name</label>
+        <trackHistory>true</trackHistory>
+        <type>Text</type>
+    </nameField>
+    <pluralLabel>Process Categories</pluralLabel>
+    <sharingModel>ReadWrite</sharingModel>
+    <visibility>Public</visibility>
+</CustomObject>

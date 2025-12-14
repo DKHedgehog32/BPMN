@@ -1,0 +1,152 @@
+<!--
+  @description: Main template for the Process Modeling Studio
+  @author: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+  @date: 2024-12-12
+  @version: 1.0.1
+  
+  EXPLANATION:
+  Layout structure for the process modeler with:
+  - Toolbar at top
+  - Palette on left
+  - Canvas in center
+  - Properties panel on right
+  - New Process modal for creating processes
+  
+  CHANGELOG:
+  Version | Date       | Author | Description
+  ---------|------------|--------|------------------------------------------
+  1.0.0   | 2024-12-12 | DvM    | Initial creation
+  1.0.1   | 2024-12-12 | DvM    | Added new process modal support
+-->
+<template>
+    <div class={containerClass}>
+        <!-- Loading Spinner -->
+        <template if:true={isLoading}>
+            <div class="loading-overlay">
+                <lightning-spinner alternative-text="Loading process..." size="large"></lightning-spinner>
+                <p class="loading-text">Loading process...</p>
+            </div>
+        </template>
+        
+        <!-- Error State (only show if not a new process) -->
+        <template if:true={showError}>
+            <div class="error-container">
+                <lightning-icon icon-name="utility:error" size="large" variant="error"></lightning-icon>
+                <h2>Error Loading Process</h2>
+                <p>{error}</p>
+                <lightning-button 
+                    label="Retry" 
+                    variant="brand" 
+                    onclick={loadProcessData}
+                ></lightning-button>
+            </div>
+        </template>
+        
+        <!-- Main Modeler UI -->
+        <template if:true={showCanvas}>
+            <!-- Toolbar -->
+            <div class="toolbar-wrapper">
+                <c-process-toolbar
+                    process-name={processName}
+                    process-status={processStatus}
+                    current-version={currentVersion}
+                    has-unsaved-changes={hasUnsavedChanges}
+                    is-saving={isSaving}
+                    read-only={isReadOnly}
+                    zoom-level={zoomLevel}
+                    onsave={handleSave}
+                    onpublish={handlePublish}
+                    onzoomin={handleZoomIn}
+                    onzoomout={handleZoomOut}
+                    onzoomfit={handleZoomFit}
+                    onzoomreset={handleZoomReset}
+                    ontogglegrid={handleToggleGrid}
+                    ontogglesnap={handleToggleSnap}
+                    onundo={handleUndo}
+                    onredo={handleRedo}
+                    ondeleteselected={handleDeleteSelected}
+                    onclone={handleClone}
+                    onexport={handleExport}
+                    onversionhistory={handleVersionHistory}
+                ></c-process-toolbar>
+            </div>
+            
+            <!-- Main Content Area -->
+            <div class="content-wrapper">
+                <!-- Left Panel: Palette (hide in read-only mode) -->
+                <template if:false={isReadOnly}>
+                    <div class="palette-wrapper">
+                        <c-process-palette></c-process-palette>
+                    </div>
+                </template>
+                
+                <!-- Center: Canvas -->
+                <div class="canvas-wrapper">
+                    <c-process-canvas
+                        process-id={effectiveProcessId}
+                        read-only={isReadOnly}
+                        oncanvaschange={handleCanvasChange}
+                        onselectionchange={handleSelectionChange}
+                    ></c-process-canvas>
+                </div>
+                
+                <!-- Right Panel: Properties -->
+                <div class="properties-wrapper">
+                    <c-process-properties
+                        selected-element={selectedElement}
+                        selected-connection={selectedConnection}
+                        read-only={isReadOnly}
+                        onpropertychange={handlePropertyChange}
+                        ondeleteelement={handleDeleteElement}
+                        ondeleteconnection={handleDeleteConnection}
+                    ></c-process-properties>
+                </div>
+            </div>
+        </template>
+        
+        <!-- New Process Modal -->
+        <template if:true={showNewProcessModal}>
+            <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <button class="slds-button slds-button_icon slds-modal__close" onclick={handleCancelNewProcess}>
+                            <lightning-icon icon-name="utility:close" size="small"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <h2 class="slds-modal__title">Save New Process</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <p class="slds-m-bottom_medium">Enter a name to save your new process.</p>
+                        <lightning-input
+                            label="Process Name"
+                            value={newProcessName}
+                            onchange={handleNewProcessNameChange}
+                            placeholder="Enter process name..."
+                            required
+                            class="slds-m-bottom_medium"
+                        ></lightning-input>
+                        <lightning-textarea
+                            label="Description"
+                            value={newProcessDescription}
+                            onchange={handleNewProcessDescChange}
+                            placeholder="Enter process description (optional)..."
+                            max-length="1000"
+                        ></lightning-textarea>
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <lightning-button
+                            label="Cancel"
+                            onclick={handleCancelNewProcess}
+                        ></lightning-button>
+                        <lightning-button
+                            label="Save Process"
+                            variant="brand"
+                            onclick={handleCreateProcess}
+                        ></lightning-button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+    </div>
+</template>

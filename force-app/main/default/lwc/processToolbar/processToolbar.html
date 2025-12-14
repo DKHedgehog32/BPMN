@@ -1,0 +1,96 @@
+<!--
+  @description: Toolbar template for process modeler - POC Dark Blue Style
+  @author: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+  @version: 1.2.0
+-->
+<template>
+    <div class="toolbar-container">
+        <!-- Left Section: Brand + Process Info -->
+        <div class="toolbar-section left">
+            <lightning-icon icon-name="standard:flow" size="x-small" class="brand-icon"></lightning-icon>
+            <span class="brand-name">Process Studio</span>
+            <span class="brand-by">by Cobra</span>
+            
+            <div class="process-info">
+                <span class="process-name">{processName}</span>
+                <span class={statusBadgeClass}>{processStatus}</span>
+            </div>
+        </div>
+        
+        <!-- Center Section: Undo/Redo + Zoom -->
+        <div class="toolbar-section center">
+            <button class="tool-button" onclick={handleUndo} disabled={readOnly} title="Undo">
+                <lightning-icon icon-name="utility:undo" size="x-small" variant="inverse"></lightning-icon>
+            </button>
+            <button class="tool-button" onclick={handleRedo} disabled={readOnly} title="Redo">
+                <lightning-icon icon-name="utility:redo" size="x-small" variant="inverse"></lightning-icon>
+            </button>
+            
+            <span class="toolbar-divider"></span>
+            
+            <button class="tool-button" onclick={handleZoomOut} disabled={zoomOutDisabled} title="Zoom Out">
+                <lightning-icon icon-name="utility:dash" size="x-small" variant="inverse"></lightning-icon>
+            </button>
+            <button class="zoom-display" onclick={handleZoomReset} title="Reset Zoom">
+                {zoomDisplayValue}
+            </button>
+            <button class="tool-button" onclick={handleZoomIn} disabled={zoomInDisabled} title="Zoom In">
+                <lightning-icon icon-name="utility:add" size="x-small" variant="inverse"></lightning-icon>
+            </button>
+        </div>
+        
+        <!-- Right Section: Actions -->
+        <div class="toolbar-section right">
+            <button class="action-button" onclick={handleSave} disabled={saveButtonDisabled}>
+                <lightning-icon icon-name="utility:save" size="x-small" variant="inverse"></lightning-icon>
+                <span>Save</span>
+            </button>
+            <button class="action-button" onclick={handleExport}>
+                <lightning-icon icon-name="utility:download" size="x-small" variant="inverse"></lightning-icon>
+                <span>Export</span>
+            </button>
+            <button class="action-button" onclick={handleShare}>
+                <lightning-icon icon-name="utility:share" size="x-small" variant="inverse"></lightning-icon>
+                <span>Share</span>
+            </button>
+            <button class="publish-button" onclick={handlePublishClick} disabled={publishButtonDisabled}>
+                <lightning-icon icon-name="utility:check" size="x-small" variant="inverse"></lightning-icon>
+                <span>Publish</span>
+            </button>
+            <button class="tool-button" title="Settings">
+                <lightning-icon icon-name="utility:settings" size="x-small" variant="inverse"></lightning-icon>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Publish Modal -->
+    <template if:true={showPublishModal}>
+        <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <button class="slds-button slds-button_icon slds-modal__close" onclick={handlePublishCancel}>
+                        <lightning-icon icon-name="utility:close" size="small"></lightning-icon>
+                        <span class="slds-assistive-text">Close</span>
+                    </button>
+                    <h2 class="slds-modal__title">Publish Process</h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <p class="publish-info">{publishInfoText}</p>
+                    <lightning-textarea
+                        label="Change Notes"
+                        value={publishNotes}
+                        onchange={handlePublishNotesChange}
+                        placeholder="Describe the changes in this version..."
+                        max-length="500"
+                        class="publish-notes"
+                    ></lightning-textarea>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label="Cancel" onclick={handlePublishCancel}></lightning-button>
+                    <lightning-button label="Publish" variant="brand" onclick={handlePublishConfirm}></lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Description__c</fullName>
+    <description>Detailed description of what happens at this process step, including inputs, outputs, and any business rules that apply.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Describe what happens at this step in the process.</inlineHelpText>
+    <label>Description</label>
+    <length>10000</length>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>4</visibleLines>
+</CustomField>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Complexity_Score__c</fullName>
+    <description>Complexity assessment score (0-100). Higher scores indicate more complex processes with many steps, decision points, and exceptions.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Rate process complexity from 0 (simple) to 100 (highly complex).</inlineHelpText>
+    <label>Complexity Score</label>
+    <precision>5</precision>
+    <required>false</required>
+    <scale>1</scale>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+================================================================================
+  PERMISSION SET: Process_Modeling_Studio_User
+  DESCRIPTION: Full access to Process Modeling Studio objects and tabs
+  
+  AUTHOR: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+  CREATED: 2024-12-12
+  VERSION: 1.0.0
+  
+  GRANTS ACCESS TO:
+  =================
+  Objects: Process__c, Process_Category__c, BPMN_Element__c, 
+           BPMN_Connection__c, Process_Version__c, Process_Assessment__c
+  
+  Tabs: Process__c, Process_Category__c
+  
+-->
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Grants full access to all Process Modeling Studio objects, fields, and tabs. Assign to users who need to create, edit, and manage business process diagrams.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Process Modeling Studio User</label>
+    
+    <!-- ===== OBJECT PERMISSIONS ===== -->
+    
+    <!-- Process__c - Full Access -->
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Process__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    
+    <!-- Process_Category__c - Full Access -->
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Process_Category__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    
+    <!-- BPMN_Element__c - Full Access -->
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>BPMN_Element__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    
+    <!-- BPMN_Connection__c - Full Access -->
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>BPMN_Connection__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    
+    <!-- Process_Version__c - Full Access -->
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Process_Version__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    
+    <!-- Process_Assessment__c - Full Access -->
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>Process_Assessment__c</object>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    
+    <!-- ===== TAB VISIBILITY ===== -->
+    <tabSettings>
+        <tab>Process__c</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+    <tabSettings>
+        <tab>Process_Category__c</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
+</PermissionSet>

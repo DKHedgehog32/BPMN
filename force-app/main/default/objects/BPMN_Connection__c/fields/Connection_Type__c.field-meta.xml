@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Connection_Type__c</fullName>
+    <description>The type of BPMN connection. Determines visual rendering and semantic meaning.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Select the type of connection.</inlineHelpText>
+    <label>Connection Type</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>SequenceFlow</fullName>
+                <default>true</default>
+                <label>Sequence Flow</label>
+            </value>
+            <value>
+                <fullName>ConditionalFlow</fullName>
+                <default>false</default>
+                <label>Conditional Flow</label>
+            </value>
+            <value>
+                <fullName>DefaultFlow</fullName>
+                <default>false</default>
+                <label>Default Flow</label>
+            </value>
+            <value>
+                <fullName>MessageFlow</fullName>
+                <default>false</default>
+                <label>Message Flow</label>
+            </value>
+            <value>
+                <fullName>Association</fullName>
+                <default>false</default>
+                <label>Association</label>
+            </value>
+            <value>
+                <fullName>DataAssociation</fullName>
+                <default>false</default>
+                <label>Data Association</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

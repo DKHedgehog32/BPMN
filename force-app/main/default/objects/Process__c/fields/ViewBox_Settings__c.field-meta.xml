@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ViewBox_Settings__c</fullName>
+    <description>JSON storing the canvas viewport settings (pan X/Y, zoom level). Allows the diagram to open at the last viewed position.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>System field - stores canvas viewport position.</inlineHelpText>
+    <label>ViewBox Settings</label>
+    <length>500</length>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>2</visibleLines>
+</CustomField>

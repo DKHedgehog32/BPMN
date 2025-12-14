@@ -1,0 +1,206 @@
+<!--
+  @description: POC component to validate SVG canvas functionality in Lightning Web Components
+  @author: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+  @date: 2024-12-10
+  @version: 1.0.1
+  
+  EXPLANATION:
+  This Proof of Concept validates that we can build a BPMN process modeling canvas
+  in Salesforce Lightning. It tests critical functionality:
+  - SVG rendering within LWC (Locker Service compatibility)
+  - Mouse event handling (mousedown, mousemove, mouseup)
+  - Drag and drop of SVG elements
+  - Pan and zoom of the canvas viewport
+  - Dynamic shape creation
+  
+  If this POC works, we can proceed with full Process Modeling Studio development.
+  If it fails, we need to evaluate alternative approaches (iframe, Visualforce, etc.)
+  
+  CHANGELOG:
+  Version | Date       | Author | Description
+  --------|------------|--------|------------------------------------------
+  1.0.0   | 2024-12-10 | DvM    | Initial POC - canvas with drag/drop shapes
+  1.0.1   | 2024-12-10 | DvM    | Fixed LWC template syntax - removed ternary operators
+-->
+
+<template>
+    <lightning-card title="BPMN Canvas POC - Technical Validation" icon-name="utility:flow">
+        <!-- POC Status Banner -->
+        <div class="slds-notify slds-notify_alert slds-alert_warning slds-m-bottom_small" role="alert">
+            <span class="slds-assistive-text">Info</span>
+            <h2>POC Status: Testing SVG Canvas in Lightning Web Components</h2>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="slds-p-around_small slds-border_bottom toolbar">
+            <!-- Shape Creation Buttons -->
+            <lightning-button-group>
+                <lightning-button 
+                    label="Add Start Event" 
+                    onclick={handleAddStartEvent}
+                    icon-name="utility:record">
+                </lightning-button>
+                <lightning-button 
+                    label="Add Task" 
+                    onclick={handleAddTask}
+                    icon-name="utility:task">
+                </lightning-button>
+                <lightning-button 
+                    label="Add Gateway" 
+                    onclick={handleAddGateway}
+                    icon-name="utility:switch">
+                </lightning-button>
+                <lightning-button 
+                    label="Add End Event" 
+                    onclick={handleAddEndEvent}
+                    icon-name="utility:stop">
+                </lightning-button>
+            </lightning-button-group>
+            
+            <!-- Mode Selection Buttons -->
+            <lightning-button-group class="slds-m-left_medium">
+                <lightning-button 
+                    label="Select Mode" 
+                    onclick={handleSelectMode}
+                    icon-name="utility:cursor"
+                    variant={selectModeVariant}>
+                </lightning-button>
+                <lightning-button 
+                    label="Pan Mode" 
+                    onclick={handlePanMode}
+                    icon-name="utility:drag_and_drop"
+                    variant={panModeVariant}>
+                </lightning-button>
+                <lightning-button 
+                    label="Connect Mode" 
+                    onclick={handleConnectMode}
+                    icon-name="utility:arrow"
+                    variant={connectModeVariant}>
+                </lightning-button>
+            </lightning-button-group>
+
+            <!-- Action Buttons -->
+            <lightning-button-group class="slds-m-left_medium">
+                <lightning-button 
+                    label="Reset View" 
+                    onclick={handleResetView}
+                    icon-name="utility:refresh">
+                </lightning-button>
+                <lightning-button 
+                    label="Clear All" 
+                    onclick={handleClearAll}
+                    icon-name="utility:delete"
+                    variant="destructive">
+                </lightning-button>
+            </lightning-button-group>
+
+            <!-- Status Info -->
+            <span class="slds-m-left_medium slds-text-body_small toolbar-info">
+                Zoom: {zoomPercentage}% | Shapes: {shapeCount} | Connections: {connectionCount}
+            </span>
+        </div>
+
+        <!-- SVG Canvas Container -->
+        <div class="canvas-container" 
+             onmousedown={handleCanvasMouseDown}
+             onmousemove={handleCanvasMouseMove}
+             onmouseup={handleCanvasMouseUp}
+             onmouseleave={handleCanvasMouseUp}
+             onwheel={handleCanvasWheel}>
+            
+            <!-- Main SVG Canvas -->
+            <svg class="bpmn-canvas" xmlns="http://www.w3.org/2000/svg">
+                
+                <!-- Definitions for markers and patterns -->
+                <defs>
+                    <!-- Arrow marker for connections - refX/refY set via JS due to LWC restrictions -->
+                    <marker id="arrowhead" 
+                            markerWidth="10" 
+                            markerHeight="7" 
+                            orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="#333"></polygon>
+                    </marker>
+                    
+                    <!-- Grid pattern -->
+                    <pattern id="smallGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e0e0e0" stroke-width="0.5"></path>
+                    </pattern>
+                    
+                    <!-- Large grid pattern -->
+                    <pattern id="largeGrid" width="100" height="100" patternUnits="userSpaceOnUse">
+                        <rect width="100" height="100" fill="url(#smallGrid)"></rect>
+                        <path d="M 100 0 L 0 0 0 100" fill="none" stroke="#ccc" stroke-width="1"></path>
+                    </pattern>
+                </defs>
+                
+                <!-- Transformable group for pan/zoom -->
+                <g class="canvas-viewport">
+                    <!-- Grid background -->
+                    <rect class="canvas-grid" 
+                          x="-5000" y="-5000" 
+                          width="10000" height="10000" 
+                          fill="url(#largeGrid)"></rect>
+                    
+                    <!-- Connections layer (rendered below shapes) -->
+                    <g class="connections-layer"></g>
+                    
+                    <!-- Shapes layer -->
+                    <g class="shapes-layer"></g>
+                    
+                    <!-- Temporary connection line while drawing -->
+                    <line class="temp-connection"
+                          x1="0" y1="0" x2="0" y2="0"
+                          stroke="#1589ee"
+                          stroke-width="2"
+                          stroke-dasharray="5,5"></line>
+                </g>
+            </svg>
+        </div>
+
+        <!-- Properties Panel (shown when shape selected) -->
+        <template if:true={hasSelectedShape}>
+            <div class="slds-p-around_small slds-border_top properties-panel">
+                <h3 class="slds-text-heading_small slds-m-bottom_small">
+                    Properties: {selectedShapeLabel}
+                </h3>
+                <lightning-input 
+                    label="Label" 
+                    value={selectedShapeLabel}
+                    onchange={handleLabelChange}>
+                </lightning-input>
+                <div class="slds-m-top_small">
+                    <lightning-button 
+                        label="Delete Shape" 
+                        onclick={handleDeleteSelected}
+                        variant="destructive"
+                        icon-name="utility:delete">
+                    </lightning-button>
+                </div>
+            </div>
+        </template>
+
+        <!-- POC Test Results -->
+        <div class="slds-p-around_small slds-border_top test-results">
+            <h3 class="slds-text-heading_small slds-m-bottom_small">POC Test Results</h3>
+            <div class="test-grid">
+                <template for:each={testResults} for:item="result">
+                    <div key={result.id} class={result.className}>
+                        <lightning-icon 
+                            icon-name={result.icon} 
+                            size="x-small"
+                            class="slds-m-right_x-small">
+                        </lightning-icon>
+                        <span>{result.text}</span>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- POC Summary -->
+        <div class={pocSummaryClass}>
+            <h2 class="slds-text-heading_medium">POC Decision</h2>
+            <div class={pocResultClass}>{pocResultText}</div>
+            <p class="slds-m-top_small">{pocMessage}</p>
+        </div>
+    </lightning-card>
+</template>

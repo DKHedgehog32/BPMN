@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Process__c</fullName>
+    <description>The parent process this element belongs to. Deleting the process will cascade delete all elements.</description>
+    <externalId>false</externalId>
+    <label>Process</label>
+    <referenceTo>Process__c</referenceTo>
+    <relationshipLabel>BPMN Elements</relationshipLabel>
+    <relationshipName>BPMN_Elements</relationshipName>
+    <relationshipOrder>0</relationshipOrder>
+    <reparentableMasterDetail>false</reparentableMasterDetail>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>MasterDetail</type>
+    <writeRequiresMasterRead>false</writeRequiresMasterRead>
+</CustomField>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Parent_Category__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>Parent category for creating hierarchical organization. Leave blank for top-level categories.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Select a parent category to nest this category. Leave blank for top-level categories.</inlineHelpText>
+    <label>Parent Category</label>
+    <referenceTo>Process_Category__c</referenceTo>
+    <relationshipLabel>Subcategories</relationshipLabel>
+    <relationshipName>Subcategories</relationshipName>
+    <required>false</required>
+    <trackHistory>true</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Element_Id__c</fullName>
+    <caseSensitive>false</caseSensitive>
+    <description>Unique identifier used to link this Salesforce record to the corresponding element in the Canvas_JSON. Generated client-side when element is created.</description>
+    <externalId>true</externalId>
+    <inlineHelpText>System field - unique ID matching the canvas element.</inlineHelpText>
+    <label>Element ID</label>
+    <length>50</length>
+    <required>true</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Text</type>
+    <unique>true</unique>
+</CustomField>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Notes__c</fullName>
+    <description>Additional notes and justification for the assessment scores.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Add notes explaining the rationale for the assessment scores.</inlineHelpText>
+    <label>Assessment Notes</label>
+    <length>10000</length>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>4</visibleLines>
+</CustomField>

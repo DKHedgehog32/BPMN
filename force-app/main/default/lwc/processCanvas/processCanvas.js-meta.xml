@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>62.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Process Canvas</masterLabel>
+    <description>SVG Canvas for BPMN process diagram editing</description>
+    <targets>
+        <target>lightning__AppPage</target>
+        <target>lightning__RecordPage</target>
+        <target>lightning__FlowScreen</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__RecordPage">
+            <objects>
+                <object>Process__c</object>
+            </objects>
+            <property name="readOnly" type="Boolean" default="false" label="Read Only Mode"/>
+        </targetConfig>
+        <targetConfig targets="lightning__AppPage">
+            <property name="processId" type="String" label="Process Record ID"/>
+            <property name="readOnly" type="Boolean" default="false" label="Read Only Mode"/>
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

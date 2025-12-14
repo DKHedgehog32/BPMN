@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+================================================================================
+  OBJECT: Process__c
+  DESCRIPTION: Master record for BPMN process diagrams
+  
+  AUTHOR: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+  CREATED: 2024-12-12
+  VERSION: 1.0.0
+  API VERSION: 62.0
+  
+  EXPLANATION:
+  ============
+  This is the central object in the Process Modeling Studio. Each Process__c
+  record represents one complete BPMN diagram containing:
+  
+  1. Canvas_JSON__c - The complete diagram state (shapes, positions, connections)
+     This is the SOURCE OF TRUTH for the visual diagram editor.
+  
+  2. Related BPMN_Element__c records - Individual shapes stored as child records
+     for reporting, searching, and linking to other Salesforce data.
+  
+  3. Related BPMN_Connection__c records - Sequence flows between elements
+     for understanding process flow and analyzing paths.
+  
+  4. Version history via Process_Version__c - Snapshots of published versions
+     for audit trail and rollback capability.
+  
+  5. Assessment scores via Process_Assessment__c - Maturity, complexity,
+     strategic importance, and risk ratings.
+  
+  DATA ARCHITECTURE:
+  ==================
+  The dual storage approach (JSON + related records) provides:
+  - Fast canvas loading/saving via JSON
+  - Native Salesforce reporting via related records
+  - Search capability across all process elements
+  - Linking process steps to Cases, Opportunities, etc.
+  
+  RELATIONSHIPS:
+  ==============
+  - Category__c (Lookup to Process_Category__c)
+  - Process_Owner__c (Lookup to User)
+  - BPMN_Elements (Master-Detail child)
+  - BPMN_Connections (Master-Detail child)
+  - Versions (Master-Detail child)
+  - Assessments (Master-Detail child)
+  
+-->
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionOverrides>
+        <actionName>Accept</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>CancelEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Clone</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Delete</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Edit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>List</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>New</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>SaveEdit</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>Tab</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <actionOverrides>
+        <actionName>View</actionName>
+        <type>Default</type>
+    </actionOverrides>
+    <allowInChatterGroups>true</allowInChatterGroups>
+    <compactLayoutAssignment>SYSTEM</compactLayoutAssignment>
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description>Master record for BPMN process diagrams in the Process Modeling Studio. Each record represents a complete business process with visual diagram, version history, and assessment scores.</description>
+    <enableActivities>true</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableEnhancedLookup>true</enableEnhancedLookup>
+    <enableFeeds>true</enableFeeds>
+    <enableHistory>true</enableHistory>
+    <enableLicensing>false</enableLicensing>
+    <enableReports>true</enableReports>
+    <enableSearch>true</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <externalSharingModel>ReadWrite</externalSharingModel>
+    <label>Process</label>
+    <nameField>
+        <label>Process Name</label>
+        <trackFeedHistory>true</trackFeedHistory>
+        <trackHistory>true</trackHistory>
+        <type>Text</type>
+    </nameField>
+    <pluralLabel>Processes</pluralLabel>
+    <sharingModel>ReadWrite</sharingModel>
+    <visibility>Public</visibility>
+</CustomObject>

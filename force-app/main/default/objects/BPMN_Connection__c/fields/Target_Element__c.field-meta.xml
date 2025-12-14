@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Target_Element__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description>The BPMN element where this connection terminates (the "to" element).</description>
+    <externalId>false</externalId>
+    <inlineHelpText>The ending element of this connection.</inlineHelpText>
+    <label>Target Element</label>
+    <referenceTo>BPMN_Element__c</referenceTo>
+    <relationshipLabel>Incoming Connections</relationshipLabel>
+    <relationshipName>Incoming_Connections</relationshipName>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

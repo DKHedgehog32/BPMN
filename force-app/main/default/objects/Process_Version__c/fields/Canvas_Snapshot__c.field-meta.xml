@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Canvas_Snapshot__c</fullName>
+    <description>Frozen copy of the Canvas_JSON at the time of publishing. Preserves the exact diagram state for this version.</description>
+    <externalId>false</externalId>
+    <inlineHelpText>System field - snapshot of diagram at time of publish.</inlineHelpText>
+    <label>Canvas Snapshot</label>
+    <length>131072</length>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>3</visibleLines>
+</CustomField>

@@ -1,0 +1,222 @@
+/**
+ * @description Styling for the BPMN Process Canvas component - POC Style
+ * @author Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+ * @date 2024-12-12
+ * @version 1.0.1
+ * 
+ * EXPLANATION:
+ * POC-style design with:
+ * - Soft pastel fills (green events, blue tasks, yellow gateways)
+ * - Dark gray strokes (#2D3748)
+ * - Blue connection points (#3182CE)
+ * - Clean, modern appearance
+ * 
+ * CHANGELOG:
+ * Version | Date       | Author | Description
+ * --------|------------|--------|------------------------------------------
+ * 1.0.0   | 2024-12-12 | DvM    | Initial creation - core canvas styles
+ * 1.0.1   | 2024-12-12 | DvM    | Updated to POC style with softer colors
+ */
+
+/* =========================================================================
+   CANVAS CONTAINER
+   ========================================================================= */
+
+.canvas-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    background-color: #F8FAFC;
+    background-image: radial-gradient(circle, #94A3B8 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+}
+
+.canvas-container:focus {
+    outline: none;
+}
+
+.canvas-svg {
+    width: 100%;
+    height: 100%;
+    cursor: default;
+    user-select: none;
+}
+
+.canvas-background {
+    cursor: grab;
+}
+
+.canvas-background:active {
+    cursor: grabbing;
+}
+
+/* =========================================================================
+   BPMN ELEMENTS - Common
+   ========================================================================= */
+
+.bpmn-element {
+    cursor: move;
+    transition: filter 0.15s ease;
+}
+
+.bpmn-element:hover {
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+.bpmn-element.selected {
+    filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
+}
+
+.element-label {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    fill: #2D3748;
+    pointer-events: none;
+    dominant-baseline: middle;
+}
+
+.element-icon {
+    color: #4A5568;
+    pointer-events: none;
+}
+
+/* =========================================================================
+   BPMN ELEMENTS - All shapes use config colors now
+   Stroke colors are applied via JavaScript ELEMENT_TYPES config
+   ========================================================================= */
+
+/* Gateway icons */
+.gateway-icon {
+    stroke: #2D3748;
+    stroke-width: 2;
+    fill: none;
+}
+
+/* =========================================================================
+   CONNECTIONS
+   ========================================================================= */
+
+.bpmn-connection {
+    cursor: pointer;
+}
+
+.connection-line {
+    transition: stroke-width 0.15s ease;
+}
+
+.bpmn-connection:hover .connection-line {
+    stroke-width: 3;
+}
+
+.bpmn-connection.selected .connection-line {
+    stroke: #3182CE;
+    stroke-width: 3;
+}
+
+.connection-hitarea {
+    cursor: pointer;
+}
+
+.connection-label {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 11px;
+    fill: #4A5568;
+}
+
+.temp-connection {
+    pointer-events: none;
+}
+
+/* =========================================================================
+   CONNECTION POINTS - POC Style (Blue filled circles)
+   ========================================================================= */
+
+.connection-point {
+    fill: #3182CE;
+    stroke: #FFFFFF;
+    stroke-width: 2;
+    cursor: crosshair;
+    opacity: 1;
+    transition: fill 0.15s ease;
+}
+
+.connection-point:hover {
+    fill: #1A56DB;
+}
+
+/* =========================================================================
+   SELECTION - POC Style (Dashed blue rectangle)
+   ========================================================================= */
+
+.selection-rect {
+    fill: none;
+    stroke: #3182CE;
+    stroke-width: 2;
+    stroke-dasharray: 8, 4;
+    pointer-events: none;
+    rx: 8;
+    ry: 8;
+    animation: selection-dash 0.8s linear infinite;
+}
+
+@keyframes selection-dash {
+    to {
+        stroke-dashoffset: -24;
+    }
+}
+
+/* =========================================================================
+   ZOOM INDICATOR
+   ========================================================================= */
+
+.zoom-indicator {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #4A5568;
+    pointer-events: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* =========================================================================
+   CURSORS FOR DIFFERENT MODES
+   ========================================================================= */
+
+.canvas-svg.panning {
+    cursor: grabbing;
+}
+
+.canvas-svg.connecting {
+    cursor: crosshair;
+}
+
+/* =========================================================================
+   GRID PATTERN (optional subtle grid)
+   ========================================================================= */
+
+.grid-pattern {
+    stroke: #E2E8F0;
+    stroke-width: 0.5;
+}
+
+/* =========================================================================
+   RESPONSIVE ADJUSTMENTS
+   ========================================================================= */
+
+@media (max-width: 768px) {
+    .element-label {
+        font-size: 11px;
+    }
+    
+    .connection-point {
+        r: 8;
+    }
+}
