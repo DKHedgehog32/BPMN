@@ -1,8 +1,8 @@
 <!--
   @description: SVG Canvas template for BPMN process diagram editor - POC Style
   @author: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
-  @date: 2024-12-12
-  @version: 1.0.2
+  @date: 2024-12-14
+  @version: 1.1.1
   
   EXPLANATION:
   This template renders the interactive SVG canvas for BPMN diagrams.
@@ -11,6 +11,8 @@
   - Icons centered within elements  
   - Blue stroke overlay when selected (not dashed box)
   - Connection points on shape edges/corners
+  - CFC complexity badges on split gateways
+  - Complexity indicators legend (bottom-left)
   
   CHANGELOG:
   Version | Date       | Author | Description
@@ -18,6 +20,8 @@
   1.0.0   | 2024-12-12 | DvM    | Initial creation - core canvas template
   1.0.1   | 2024-12-12 | DvM    | Fixed: moved all inline expressions to JS getters
   1.0.2   | 2024-12-12 | DvM    | Fixed: POC-style labels, icons, selection
+  1.1.0   | 2024-12-14 | DvM    | Added: CFC complexity badges on gateways
+  1.1.1   | 2024-12-14 | DvM    | Added: Complexity indicators legend (bottom-left)
 -->
 <template>
     <div class="canvas-container" tabindex="0">
@@ -28,11 +32,13 @@
             onmousedown={handleCanvasMouseDown}
             onmousemove={handleCanvasMouseMove}
             onmouseup={handleCanvasMouseUp}
+            onmouseleave={handleCanvasMouseLeave}
             onwheel={handleCanvasWheel}
             ondragover={handleCanvasDragOver}
             ondrop={handleCanvasDrop}
         >
             <!-- SVG Definitions -->
+            <!-- NOTE: refX/refY are set programmatically in JS due to LWC restrictions -->
             <defs>
                 <!-- Arrow marker for connections -->
                 <marker
@@ -44,10 +50,9 @@
                 >
                     <polygon points="0 0, 10 3.5, 0 7" fill="#2D3748"></polygon>
                 </marker>
-                
             </defs>
             
-            <!-- Background for click/pan handling (dots rendered via CSS) -->
+            <!-- Background for click/pan handling -->
             <rect 
                 class="canvas-background"
                 x="-10000" 
@@ -120,7 +125,7 @@
                                     r={el.radius}
                                     fill="none"
                                     stroke="#3182CE"
-                                    stroke-width="4"
+                                    stroke-width="3"
                                     class="selection-stroke"
                                 ></circle>
                             </template>
@@ -135,7 +140,7 @@
                                 stroke-width={el.strokeWidth}
                             ></circle>
                             
-                            <!-- Double circle for intermediate events -->
+                            <!-- Inner circle for intermediate events -->
                             <template if:true={el.double}>
                                 <circle
                                     cx={el.centerX}
@@ -143,60 +148,27 @@
                                     r={el.innerRadius}
                                     fill="none"
                                     stroke={el.stroke}
-                                    stroke-width="1"
+                                    stroke-width="1.5"
                                 ></circle>
                             </template>
                             
-                            <!-- Timer icon (centered clock) -->
-                            <template if:true={el.showTimerIcon}>
-                                <circle 
-                                    cx={el.centerX} 
-                                    cy={el.centerY} 
-                                    r="12" 
-                                    fill="none" 
-                                    stroke="#2D3748" 
-                                    stroke-width="1.5"
-                                ></circle>
-                                <path 
-                                    d={el.timerHandV}
-                                    stroke="#2D3748" 
-                                    stroke-width="1.5"
-                                    stroke-linecap="round"
-                                ></path>
-                                <path 
-                                    d={el.timerHandH}
-                                    stroke="#2D3748" 
-                                    stroke-width="1.5"
-                                    stroke-linecap="round"
-                                ></path>
-                            </template>
-                            
-                            <!-- Message icon (centered envelope) -->
-                            <template if:true={el.showMessageIcon}>
-                                <rect 
-                                    x={el.messageX} 
-                                    y={el.messageY} 
-                                    width={el.messageWidth} 
-                                    height={el.messageHeight} 
-                                    rx="1" 
-                                    fill="none" 
-                                    stroke="#2D3748" 
-                                    stroke-width="1.5"
-                                ></rect>
-                                <path 
-                                    d={el.messagePath}
-                                    fill="none" 
-                                    stroke="#2D3748" 
-                                    stroke-width="1.5"
-                                ></path>
-                            </template>
+                            <!-- Event label (below) -->
+                            <text
+                                x={el.labelX}
+                                y={el.labelY}
+                                text-anchor="middle"
+                                dominant-baseline="hanging"
+                                class="element-label"
+                            >
+                                {el.name}
+                            </text>
                         </template>
                         
                         <!-- ============================================ -->
                         <!-- RECTANGLE SHAPES (Tasks) -->
                         <!-- ============================================ -->
                         <template if:true={el.isRect}>
-                            <!-- Selection: Blue stroke overlay (POC style) -->
+                            <!-- Selection: Blue stroke overlay -->
                             <template if:true={el.isSelected}>
                                 <rect
                                     x={el.x}
@@ -205,7 +177,7 @@
                                     height={el.height}
                                     fill="none"
                                     stroke="#3182CE"
-                                    stroke-width="4"
+                                    stroke-width="3"
                                     rx={el.rx}
                                     class="selection-stroke"
                                 ></rect>
@@ -248,25 +220,19 @@
                                     <path d="M10 2v3M10 15v3M2 10h3M15 10h3" fill="none" stroke="#4A5568" stroke-width="1.5"></path>
                                 </g>
                             </template>
-                            <template if:true={el.showScriptIcon}>
-                                <g transform={el.iconTransform}>
-                                    <path d="M3 1h10l4 4v14H3z" fill="none" stroke="#4A5568" stroke-width="1.5"></path>
-                                    <path d="M6 8h8M6 12h6" fill="none" stroke="#4A5568" stroke-width="1"></path>
-                                </g>
-                            </template>
                         </template>
                         
                         <!-- ============================================ -->
                         <!-- DIAMOND SHAPES (Gateways) -->
                         <!-- ============================================ -->
                         <template if:true={el.isDiamond}>
-                            <!-- Selection: Blue stroke overlay following diamond shape -->
+                            <!-- Selection: Blue stroke overlay -->
                             <template if:true={el.isSelected}>
                                 <polygon
-                                    points={el.diamondPoints}
+                                    points={el.selectionPoints}
                                     fill="none"
                                     stroke="#3182CE"
-                                    stroke-width="4"
+                                    stroke-width="3"
                                     class="selection-stroke"
                                 ></polygon>
                             </template>
@@ -311,6 +277,48 @@
                                     stroke="#2D3748"
                                     stroke-width="3"
                                 ></circle>
+                            </template>
+                            
+                            <!-- Gateway label (below) -->
+                            <text
+                                x={el.labelX}
+                                y={el.labelY}
+                                text-anchor="middle"
+                                dominant-baseline="hanging"
+                                class="element-label"
+                            >
+                                {el.name}
+                            </text>
+                            
+                            <!-- ============================================ -->
+                            <!-- CFC COMPLEXITY BADGE (for split gateways) -->
+                            <!-- Shows CFC contribution with traffic light colors -->
+                            <!-- ============================================ -->
+                            <template if:true={el.showComplexityBadge}>
+                                <!-- Badge background (pill shape) -->
+                                <rect
+                                    class="cfc-badge-bg"
+                                    x={el.badgeX}
+                                    y={el.badgeY}
+                                    width="22"
+                                    height="16"
+                                    rx="8"
+                                    fill={el.complexityBadgeColor}
+                                ></rect>
+                                
+                                <!-- Badge text (CFC number) -->
+                                <text
+                                    class="cfc-badge-text"
+                                    x={el.badgeCenterX}
+                                    y={el.badgeCenterY}
+                                    text-anchor="middle"
+                                    dominant-baseline="central"
+                                    fill="#FFFFFF"
+                                    font-size="10"
+                                    font-weight="bold"
+                                >
+                                    {el.complexityBadgeText}
+                                </text>
                             </template>
                         </template>
                         
@@ -379,9 +387,26 @@
             </g>
         </svg>
         
-        <!-- Zoom indicator -->
+        <!-- Zoom indicator (bottom-right) -->
         <div class="zoom-indicator">
             {zoomPercentage}%
+        </div>
+        
+        <!-- Complexity Indicators Legend (bottom-left) -->
+        <div class="complexity-legend">
+            <h4 class="legend-title">Complexity Indicators</h4>
+            <div class="legend-item">
+                <span class="legend-color legend-high"></span>
+                <span class="legend-label">High (CFC 7+)</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color legend-medium"></span>
+                <span class="legend-label">Medium (CFC 4-6)</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color legend-low"></span>
+                <span class="legend-label">Low (CFC 1-3)</span>
+            </div>
         </div>
     </div>
 </template>

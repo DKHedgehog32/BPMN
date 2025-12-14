@@ -1,25 +1,29 @@
 /**
  * @description Styling for the BPMN Process Canvas component - POC Style
  * @author Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
- * @date 2024-12-12
- * @version 1.0.1
+ * @date 2024-12-14
+ * @version 1.1.1
  * 
  * EXPLANATION:
- * POC-style design with:
- * - Soft pastel fills (green events, blue tasks, yellow gateways)
- * - Dark gray strokes (#2D3748)
- * - Blue connection points (#3182CE)
- * - Clean, modern appearance
+ * POC-style canvas with:
+ * - Clean, minimal design
+ * - Blue selection indicators
+ * - Dot grid background
+ * - CFC complexity badges on gateways
+ * - Complexity legend (bottom-left)
+ * - Pan mode cursor styles
  * 
  * CHANGELOG:
  * Version | Date       | Author | Description
  * --------|------------|--------|------------------------------------------
- * 1.0.0   | 2024-12-12 | DvM    | Initial creation - core canvas styles
- * 1.0.1   | 2024-12-12 | DvM    | Updated to POC style with softer colors
+ * 1.0.0   | 2024-12-12 | DvM    | Initial creation
+ * 1.0.1   | 2024-12-12 | DvM    | Fixed connection point visibility
+ * 1.1.0   | 2024-12-14 | DvM    | Added CFC badge styles
+ * 1.1.1   | 2024-12-14 | DvM    | Added complexity legend styles, pan cursor
  */
 
 /* =========================================================================
-   CANVAS CONTAINER
+   CONTAINER
    ========================================================================= */
 
 .canvas-container {
@@ -27,20 +31,22 @@
     height: 100%;
     position: relative;
     overflow: hidden;
-    background-color: #F8FAFC;
-    background-image: radial-gradient(circle, #94A3B8 1.5px, transparent 1.5px);
-    background-size: 24px 24px;
+    background-color: #FAFBFC;
+    outline: none;
 }
 
 .canvas-container:focus {
     outline: none;
 }
 
+/* =========================================================================
+   SVG CANVAS
+   ========================================================================= */
+
 .canvas-svg {
     width: 100%;
     height: 100%;
     cursor: default;
-    user-select: none;
 }
 
 .canvas-background {
@@ -51,23 +57,48 @@
     cursor: grabbing;
 }
 
+/* Panning mode cursor */
+.canvas-container.panning .canvas-svg,
+.canvas-container.panning .canvas-background {
+    cursor: grabbing;
+}
+
+/* Space bar held - ready to pan */
+.canvas-container.pan-ready .canvas-svg,
+.canvas-container.pan-ready .canvas-background {
+    cursor: grab;
+}
+
 /* =========================================================================
-   BPMN ELEMENTS - Common
+   DOT GRID PATTERN (via radial gradient)
+   ========================================================================= */
+
+.canvas-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: radial-gradient(circle, #D1D5DB 1px, transparent 1px);
+    background-size: 20px 20px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* =========================================================================
+   BPMN ELEMENTS
    ========================================================================= */
 
 .bpmn-element {
     cursor: move;
-    transition: filter 0.15s ease;
 }
 
 .bpmn-element:hover {
-    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+    filter: brightness(0.98);
 }
 
-.bpmn-element.selected {
-    filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
-}
-
+/* Element label styling */
 .element-label {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 13px;
@@ -82,16 +113,23 @@
     pointer-events: none;
 }
 
-/* =========================================================================
-   BPMN ELEMENTS - All shapes use config colors now
-   Stroke colors are applied via JavaScript ELEMENT_TYPES config
-   ========================================================================= */
-
 /* Gateway icons */
 .gateway-icon {
     stroke: #2D3748;
     stroke-width: 2;
     fill: none;
+}
+
+/* =========================================================================
+   SELECTION - POC Style (Blue stroke overlay)
+   ========================================================================= */
+
+.selection-stroke {
+    pointer-events: none;
+}
+
+.bpmn-element.selected {
+    filter: none;
 }
 
 /* =========================================================================
@@ -147,7 +185,29 @@
 }
 
 /* =========================================================================
-   SELECTION - POC Style (Dashed blue rectangle)
+   CFC COMPLEXITY BADGES
+   Traffic light color coding for immediate cognitive load recognition
+   ========================================================================= */
+
+.cfc-badge-bg {
+    pointer-events: none;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+    transition: filter 0.2s ease;
+}
+
+.cfc-badge-text {
+    pointer-events: none;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 700;
+}
+
+/* Hover effect on elements with badges */
+.bpmn-element:hover .cfc-badge-bg {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+/* =========================================================================
+   SELECTION RECTANGLE (for multi-select, future feature)
    ========================================================================= */
 
 .selection-rect {
@@ -168,7 +228,7 @@
 }
 
 /* =========================================================================
-   ZOOM INDICATOR
+   ZOOM INDICATOR (bottom-right)
    ========================================================================= */
 
 .zoom-indicator {
@@ -187,24 +247,62 @@
 }
 
 /* =========================================================================
-   CURSORS FOR DIFFERENT MODES
+   COMPLEXITY LEGEND (bottom-left)
    ========================================================================= */
 
-.canvas-svg.panning {
-    cursor: grabbing;
+.complexity-legend {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    z-index: 10;
 }
 
-.canvas-svg.connecting {
-    cursor: crosshair;
+.legend-title {
+    margin: 0 0 10px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #2D3748;
 }
 
-/* =========================================================================
-   GRID PATTERN (optional subtle grid)
-   ========================================================================= */
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
 
-.grid-pattern {
-    stroke: #E2E8F0;
-    stroke-width: 0.5;
+.legend-item:last-child {
+    margin-bottom: 0;
+}
+
+.legend-color {
+    width: 20px;
+    height: 14px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.legend-high {
+    background-color: #DC2626;
+}
+
+.legend-medium {
+    background-color: #F97316;
+}
+
+.legend-low {
+    background-color: #EAB308;
+}
+
+.legend-label {
+    font-size: 12px;
+    color: #4A5568;
 }
 
 /* =========================================================================
@@ -218,5 +316,21 @@
     
     .connection-point {
         r: 8;
+    }
+    
+    .cfc-badge-text {
+        font-size: 9px;
+    }
+    
+    .complexity-legend {
+        padding: 8px 12px;
+    }
+    
+    .legend-title {
+        font-size: 11px;
+    }
+    
+    .legend-label {
+        font-size: 11px;
     }
 }

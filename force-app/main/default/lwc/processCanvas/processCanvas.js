@@ -1,8 +1,8 @@
 /**
  * @description SVG Canvas component for rendering and editing BPMN process diagrams
  * @author Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
- * @date 2024-12-12
- * @version 1.0.2
+ * @date 2024-12-14
+ * @version 1.1.1
  * 
  * EXPLANATION:
  * This is the core canvas component for the Process Modeling Studio. It provides:
@@ -11,6 +11,12 @@
  * - Pan and zoom for navigating large diagrams
  * - Keyboard shortcuts for common operations
  * - Canvas state management (JSON serialization)
+ * - Process Quality Scoring based on CFC (Control-Flow Complexity) metrics
+ * 
+ * PAN MODES:
+ * - Middle mouse button: Always pans
+ * - Shift + left click drag: Pans
+ * - Left click drag on background: Pans (and clears selection)
  * 
  * ZOOM IMPLEMENTATION:
  * - The viewBox defines the visible area of the SVG
@@ -24,54 +30,165 @@
  * - Mouse up on another element creates the connection
  * - Escape or mouse up on empty area cancels
  * 
+ * CFC SCORING (Academic Foundation):
+ * Based on Cardoso et al. (2008) CFC metric and Mendling et al. (2010) 7PMG guidelines:
+ * - XOR gateways: CFC = fan-out (each path is a different mental state)
+ * - AND gateways: CFC = 1 (CONSTANT - all paths execute, ONE mental state)
+ * - OR gateways: CFC = 2^fan-out - 1 (EXPONENTIAL - any combination possible)
+ * 
  * CHANGELOG:
  * Version | Date       | Author | Description
  * --------|------------|--------|------------------------------------------
  * 1.0.0   | 2024-12-12 | DvM    | Initial creation - core canvas functionality
  * 1.0.1   | 2024-12-12 | DvM    | Fixed: pre-calculate all SVG attributes
  * 1.0.2   | 2024-12-12 | DvM    | Fixed: zoom now scales viewBox, connection drawing works
+ * 1.1.0   | 2024-12-14 | DvM    | Added: Process Quality Scoring with CFC metrics
+ * 1.1.1   | 2024-12-14 | DvM    | Fixed: Pan mode (shift+drag, background drag)
+ *                                 Added: handleCanvasMouseLeave handler
  */
 import { LightningElement, api, track } from 'lwc';
 
-// BPMN element type definitions with rendering properties
-// POC Style: Softer fills, dark strokes, clean look
+// =========================================================================
+// BPMN ELEMENT TYPES - With CFC (Control-Flow Complexity) Properties
+// =========================================================================
 const ELEMENT_TYPES = {
-    // Events - Light green fill, dark stroke
-    StartEvent: { width: 50, height: 50, shape: 'circle', fill: '#C6F6D5', stroke: '#2D3748', strokeWidth: 2 },
-    EndEvent: { width: 50, height: 50, shape: 'circle', fill: '#FED7D7', stroke: '#2D3748', strokeWidth: 3 },
-    IntermediateEvent: { width: 50, height: 50, shape: 'circle', fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, double: true },
-    TimerStartEvent: { width: 50, height: 50, shape: 'circle', fill: '#C6F6D5', stroke: '#2D3748', strokeWidth: 2, icon: 'timer' },
-    MessageStartEvent: { width: 50, height: 50, shape: 'circle', fill: '#C6F6D5', stroke: '#2D3748', strokeWidth: 2, icon: 'message' },
+    // Events - Light green fill, dark stroke - No CFC contribution
+    StartEvent: { 
+        width: 50, height: 50, shape: 'circle', 
+        fill: '#C6F6D5', stroke: '#2D3748', strokeWidth: 2,
+        isGateway: false, cfcFormula: null
+    },
+    EndEvent: { 
+        width: 50, height: 50, shape: 'circle', 
+        fill: '#FED7D7', stroke: '#2D3748', strokeWidth: 3,
+        isGateway: false, cfcFormula: null
+    },
+    IntermediateEvent: { 
+        width: 50, height: 50, shape: 'circle', 
+        fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, double: true,
+        isGateway: false, cfcFormula: null
+    },
+    TimerStartEvent: { 
+        width: 50, height: 50, shape: 'circle', 
+        fill: '#C6F6D5', stroke: '#2D3748', strokeWidth: 2, icon: 'timer',
+        isGateway: false, cfcFormula: null
+    },
+    MessageStartEvent: { 
+        width: 50, height: 50, shape: 'circle', 
+        fill: '#C6F6D5', stroke: '#2D3748', strokeWidth: 2, icon: 'message',
+        isGateway: false, cfcFormula: null
+    },
     
     // Tasks - Light blue fill, dark stroke, rounded corners
-    UserTask: { width: 140, height: 70, shape: 'rect', fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'user' },
-    ServiceTask: { width: 140, height: 70, shape: 'rect', fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'service' },
-    ScriptTask: { width: 140, height: 70, shape: 'rect', fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'script' },
-    ManualTask: { width: 140, height: 70, shape: 'rect', fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'manual' },
-    BusinessRuleTask: { width: 140, height: 70, shape: 'rect', fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'rule' },
-    SendTask: { width: 140, height: 70, shape: 'rect', fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'send' },
-    ReceiveTask: { width: 140, height: 70, shape: 'rect', fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'receive' },
+    UserTask: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'user',
+        isGateway: false, cfcFormula: null
+    },
+    ServiceTask: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'service',
+        isGateway: false, cfcFormula: null
+    },
+    ScriptTask: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'script',
+        isGateway: false, cfcFormula: null
+    },
+    ManualTask: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'manual',
+        isGateway: false, cfcFormula: null
+    },
+    BusinessRuleTask: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'rule',
+        isGateway: false, cfcFormula: null
+    },
+    SendTask: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'send',
+        isGateway: false, cfcFormula: null
+    },
+    ReceiveTask: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'receive',
+        isGateway: false, cfcFormula: null
+    },
     
-    // Gateways - Light yellow fill, dark stroke
-    ExclusiveGateway: { width: 50, height: 50, shape: 'diamond', fill: '#FEFCBF', stroke: '#2D3748', strokeWidth: 2, icon: 'x' },
-    ParallelGateway: { width: 50, height: 50, shape: 'diamond', fill: '#FEFCBF', stroke: '#2D3748', strokeWidth: 2, icon: 'plus' },
-    InclusiveGateway: { width: 50, height: 50, shape: 'diamond', fill: '#FEFCBF', stroke: '#2D3748', strokeWidth: 2, icon: 'circle' },
-    EventBasedGateway: { width: 50, height: 50, shape: 'diamond', fill: '#FEFCBF', stroke: '#2D3748', strokeWidth: 2, icon: 'pentagon' },
+    // Gateways - Light yellow fill, dark stroke - CFC Contributors
+    ExclusiveGateway: { 
+        width: 50, height: 50, shape: 'diamond', 
+        fill: '#FEFCBF', stroke: '#2D3748', strokeWidth: 2, icon: 'x',
+        isGateway: true,
+        cfcType: 'XOR',
+        cfcFormula: (fanout) => fanout,
+        complexityDescription: 'Each branch is a separate decision path'
+    },
+    ParallelGateway: { 
+        width: 50, height: 50, shape: 'diamond', 
+        fill: '#FEFCBF', stroke: '#2D3748', strokeWidth: 2, icon: 'plus',
+        isGateway: true,
+        cfcType: 'AND',
+        cfcFormula: () => 1,
+        complexityDescription: 'All branches execute in parallel - low cognitive load'
+    },
+    InclusiveGateway: { 
+        width: 50, height: 50, shape: 'diamond', 
+        fill: '#FEFCBF', stroke: '#2D3748', strokeWidth: 2, icon: 'o',
+        isGateway: true,
+        cfcType: 'OR',
+        cfcFormula: (fanout) => Math.pow(2, fanout) - 1,
+        complexityDescription: 'Any combination of branches can execute - exponential complexity!',
+        isHighRisk: true
+    },
+    EventBasedGateway: { 
+        width: 50, height: 50, shape: 'diamond', 
+        fill: '#FEFCBF', stroke: '#2D3748', strokeWidth: 2, icon: 'pentagon',
+        isGateway: true,
+        cfcType: 'XOR',
+        cfcFormula: (fanout) => fanout,
+        complexityDescription: 'Waits for first event - treated as exclusive choice'
+    },
     
     // Sub-Process - Light purple fill
-    SubProcess: { width: 160, height: 100, shape: 'rect', fill: '#E9D8FD', stroke: '#2D3748', strokeWidth: 2, rx: 12, dashed: true },
-    CallActivity: { width: 140, height: 70, shape: 'rect', fill: '#E9D8FD', stroke: '#2D3748', strokeWidth: 3, rx: 12 },
+    SubProcess: { 
+        width: 160, height: 100, shape: 'rect', 
+        fill: '#E9D8FD', stroke: '#2D3748', strokeWidth: 2, rx: 12, dashed: true,
+        isGateway: false, cfcFormula: null
+    },
+    CallActivity: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#E9D8FD', stroke: '#2D3748', strokeWidth: 3, rx: 12,
+        isGateway: false, cfcFormula: null
+    },
     
     // Data - Light gray fill
-    DataObject: { width: 40, height: 50, shape: 'document', fill: '#EDF2F7', stroke: '#2D3748', strokeWidth: 1.5 },
-    DataStore: { width: 50, height: 50, shape: 'cylinder', fill: '#EDF2F7', stroke: '#2D3748', strokeWidth: 1.5 },
+    DataObject: { 
+        width: 40, height: 50, shape: 'document', 
+        fill: '#EDF2F7', stroke: '#2D3748', strokeWidth: 1.5,
+        isGateway: false, cfcFormula: null
+    },
+    DataStore: { 
+        width: 50, height: 50, shape: 'cylinder', 
+        fill: '#EDF2F7', stroke: '#2D3748', strokeWidth: 1.5,
+        isGateway: false, cfcFormula: null
+    },
     
     // Artifacts
-    TextAnnotation: { width: 120, height: 60, shape: 'annotation', fill: '#FFFAF0', stroke: '#2D3748', strokeWidth: 1 },
-    Group: { width: 200, height: 150, shape: 'rect', fill: 'none', stroke: '#718096', strokeWidth: 1.5, dashed: true, rx: 12 }
+    TextAnnotation: { 
+        width: 120, height: 60, shape: 'annotation', 
+        fill: '#FFFAF0', stroke: '#2D3748', strokeWidth: 1,
+        isGateway: false, cfcFormula: null
+    },
+    Group: { 
+        width: 200, height: 150, shape: 'rect', 
+        fill: 'none', stroke: '#718096', strokeWidth: 1.5, dashed: true, rx: 12,
+        isGateway: false, cfcFormula: null
+    }
 };
 
-// Connection type styles - POC style with dark strokes
+// Connection type styles
 const CONNECTION_TYPES = {
     SequenceFlow: { stroke: '#2D3748', strokeWidth: 2, markerEnd: 'arrow' },
     ConditionalFlow: { stroke: '#2D3748', strokeWidth: 2, markerEnd: 'arrow', markerStart: 'diamond' },
@@ -89,7 +206,6 @@ export default class ProcessCanvas extends LightningElement {
     @api processId;
     @api readOnly = false;
     
-    // Get current canvas state as JSON
     @api
     getCanvasState() {
         return JSON.stringify({
@@ -100,7 +216,6 @@ export default class ProcessCanvas extends LightningElement {
         });
     }
     
-    // Load canvas state from JSON
     @api
     setCanvasState(jsonState) {
         try {
@@ -114,7 +229,6 @@ export default class ProcessCanvas extends LightningElement {
         }
     }
     
-    // Add element from palette drop
     @api
     addElement(elementType, x, y, name) {
         const typeConfig = ELEMENT_TYPES[elementType];
@@ -124,11 +238,11 @@ export default class ProcessCanvas extends LightningElement {
         }
         
         const element = {
-            id: this.generateId('elem'),
+            id: this.generateId('el'),
             type: elementType,
             name: name || this.getDefaultName(elementType),
-            x: x - typeConfig.width / 2,
-            y: y - typeConfig.height / 2,
+            x: x,
+            y: y,
             width: typeConfig.width,
             height: typeConfig.height,
             description: '',
@@ -144,7 +258,18 @@ export default class ProcessCanvas extends LightningElement {
         return element.id;
     }
     
-    // Delete selected element(s)
+    @api
+    deleteSelectedElement() {
+        if (!this.selectedElementId) return;
+        this.deleteElement(this.selectedElementId);
+    }
+    
+    @api
+    deleteSelectedConnection() {
+        if (!this.selectedConnectionId) return;
+        this.deleteConnection(this.selectedConnectionId);
+    }
+    
     @api
     deleteSelected() {
         if (this.selectedElementId) {
@@ -154,53 +279,28 @@ export default class ProcessCanvas extends LightningElement {
         }
     }
     
-    // Zoom controls - adjust viewBox to zoom
     @api
-    zoomIn() {
-        this.zoom = Math.min(this.zoom * 1.2, 3);
-        this.applyZoom();
-    }
-    
-    @api
-    zoomOut() {
-        this.zoom = Math.max(this.zoom / 1.2, 0.3);
-        this.applyZoom();
-    }
-    
-    @api
-    zoomFit() {
-        if (this.elements.length === 0) {
-            this.zoom = 1;
-            this.baseViewBox = { x: 0, y: 0, width: 1200, height: 800 };
-            return;
-        }
-        
-        // Calculate bounding box of all elements
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        this.elements.forEach(el => {
-            minX = Math.min(minX, el.x);
-            minY = Math.min(minY, el.y);
-            maxX = Math.max(maxX, el.x + el.width);
-            maxY = Math.max(maxY, el.y + el.height);
-        });
-        
-        const padding = 50;
-        this.baseViewBox = {
-            x: minX - padding,
-            y: minY - padding,
-            width: maxX - minX + padding * 2,
-            height: maxY - minY + padding * 2
-        };
-        this.zoom = 1;
-    }
-    
-    @api
-    zoomReset() {
+    resetZoom() {
         this.zoom = 1;
         this.baseViewBox = { x: 0, y: 0, width: 1200, height: 800 };
     }
     
-    // Update selected element properties
+    @api
+    zoomIn() {
+        this.zoom = Math.min(4, this.zoom * 1.2);
+    }
+    
+    @api
+    zoomOut() {
+        this.zoom = Math.max(0.25, this.zoom / 1.2);
+    }
+    
+    @api
+    zoomFit() {
+        // TODO: Calculate zoom to fit all elements
+        this.resetZoom();
+    }
+    
     @api
     updateSelectedElement(properties) {
         if (!this.selectedElementId) return;
@@ -211,6 +311,185 @@ export default class ProcessCanvas extends LightningElement {
         this.elements[index] = { ...this.elements[index], ...properties };
         this.elements = [...this.elements];
         this.notifyCanvasChange();
+    }
+    
+    // =========================================================================
+    // PROCESS QUALITY SCORING
+    // =========================================================================
+    
+    getOutgoingFlows(elementId) {
+        return this.connections.filter(c => c.sourceId === elementId);
+    }
+    
+    @api
+    calculateProcessScore() {
+        let totalCFC = 0;
+        let cfcXOR = 0;
+        let cfcOR = 0;
+        let cfcAND = 0;
+        let noajs = 0;
+        let noa = 0;
+        let orGatewayCount = 0;
+        let gatewayCount = 0;
+        const issues = [];
+        
+        this.elements.forEach(el => {
+            const typeConfig = ELEMENT_TYPES[el.type];
+            if (!typeConfig) return;
+            
+            if (!['TextAnnotation', 'Group', 'DataObject', 'DataStore'].includes(el.type)) {
+                noajs++;
+            }
+            
+            if (el.type.includes('Task') || el.type === 'SubProcess' || el.type === 'CallActivity') {
+                noa++;
+            }
+            
+            if (typeConfig.isGateway && typeConfig.cfcFormula) {
+                gatewayCount++;
+                const outgoing = this.getOutgoingFlows(el.id).length;
+                
+                if (outgoing > 1) {
+                    const cfc = typeConfig.cfcFormula(outgoing);
+                    totalCFC += cfc;
+                    
+                    switch (typeConfig.cfcType) {
+                        case 'XOR': cfcXOR += cfc; break;
+                        case 'OR':
+                            cfcOR += cfc;
+                            orGatewayCount++;
+                            if (outgoing >= 3) {
+                                issues.push({
+                                    type: 'warning',
+                                    elementId: el.id,
+                                    elementName: el.name,
+                                    message: `OR gateway "${el.name || 'Unnamed'}" with ${outgoing} paths adds CFC of ${cfc}`,
+                                    severity: 'high'
+                                });
+                            }
+                            break;
+                        case 'AND': cfcAND += cfc; break;
+                        default: break;
+                    }
+                }
+            }
+        });
+        
+        if (noajs > 50) {
+            issues.push({
+                type: 'error',
+                message: `Model has ${noajs} elements (>50). Error probability exceeds 50%. Consider decomposing.`,
+                severity: 'critical'
+            });
+        } else if (noajs > 33) {
+            issues.push({
+                type: 'warning',
+                message: `Model has ${noajs} elements - approaching high complexity threshold (33)`,
+                severity: 'medium'
+            });
+        }
+        
+        if (orGatewayCount > 2) {
+            issues.push({
+                type: 'warning',
+                message: `Model has ${orGatewayCount} OR gateways. Consider reducing (7PMG G5)`,
+                severity: 'medium'
+            });
+        }
+        
+        if (totalCFC > 9) {
+            issues.push({
+                type: 'warning',
+                message: `Control-Flow Complexity (CFC) of ${totalCFC} exceeds threshold (9)`,
+                severity: 'high'
+            });
+        }
+        
+        const dimensions = this.calculateDimensionScores({ totalCFC, noajs, noa, gatewayCount, orGatewayCount });
+        
+        const totalScore = Math.round(
+            dimensions.structural * 0.20 +
+            dimensions.controlFlow * 0.30 +
+            dimensions.correctness * 0.25 +
+            dimensions.naming * 0.15 +
+            dimensions.modularity * 0.10
+        );
+        
+        const grade = this.getGrade(totalScore);
+        const gradeColors = { 'A': '#22C55E', 'B': '#84CC16', 'C': '#EAB308', 'D': '#F97316', 'F': '#DC2626' };
+        
+        return {
+            total: totalScore,
+            grade,
+            gradeColor: gradeColors[grade],
+            cfc: totalCFC,
+            cfcBreakdown: { xor: cfcXOR, or: cfcOR, and: cfcAND },
+            noajs,
+            noa,
+            gatewayCount,
+            dimensions,
+            issues,
+            thresholds: {
+                cfc: totalCFC <= 3 ? 'low' : totalCFC <= 9 ? 'moderate' : 'high',
+                noajs: noajs <= 17 ? 'low' : noajs <= 33 ? 'moderate' : 'high',
+                noa: noa <= 12 ? 'low' : noa <= 26 ? 'moderate' : 'high'
+            }
+        };
+    }
+    
+    calculateDimensionScores({ totalCFC, noajs, noa, gatewayCount, orGatewayCount }) {
+        const structural = Math.max(0, Math.min(100, 
+            noajs <= 17 ? 100 :
+            noajs <= 33 ? 100 - ((noajs - 17) / 16) * 40 :
+            noajs <= 50 ? 60 - ((noajs - 33) / 17) * 40 :
+            20 - Math.min(20, (noajs - 50) * 2)
+        ));
+        
+        const controlFlow = Math.max(0, Math.min(100,
+            totalCFC <= 3 ? 100 :
+            totalCFC <= 9 ? 100 - ((totalCFC - 3) / 6) * 30 :
+            totalCFC <= 20 ? 70 - ((totalCFC - 9) / 11) * 50 :
+            20 - Math.min(20, (totalCFC - 20) * 2)
+        ));
+        
+        const correctness = Math.max(0, 100 - (orGatewayCount * 10));
+        
+        const defaultNames = ['Start', 'End', 'Task', 'Gateway', 'Parallel', 'Inclusive', 'Event', 'Service Task', 'Script Task', 'Manual Task', 'Sub-Process'];
+        const elementsWithLabels = this.elements.filter(el => 
+            el.name && !defaultNames.includes(el.name) && el.name.trim() !== ''
+        ).length;
+        const naming = this.elements.length > 0 
+            ? Math.round((elementsWithLabels / this.elements.length) * 100)
+            : 100;
+        
+        const modularity = Math.max(0, Math.min(100,
+            noajs <= 30 ? 100 :
+            noajs <= 50 ? 100 - ((noajs - 30) / 20) * 50 :
+            50 - Math.min(50, (noajs - 50) * 2)
+        ));
+        
+        return {
+            structural: Math.round(structural),
+            controlFlow: Math.round(controlFlow),
+            correctness: Math.round(correctness),
+            naming: Math.round(naming),
+            modularity: Math.round(modularity)
+        };
+    }
+    
+    getGrade(score) {
+        if (score >= 90) return 'A';
+        if (score >= 80) return 'B';
+        if (score >= 70) return 'C';
+        if (score >= 60) return 'D';
+        return 'F';
+    }
+    
+    getCfcBadgeColor(cfc) {
+        if (cfc >= 7) return '#DC2626';
+        if (cfc >= 4) return '#F97316';
+        if (cfc >= 1) return '#EAB308';
+        return null;
     }
     
     // =========================================================================
@@ -246,71 +525,47 @@ export default class ProcessCanvas extends LightningElement {
     }
     
     initializeCanvas() {
-        // Add keyboard listener to container
+        const marker = this.template.querySelector('#arrowhead');
+        if (marker) {
+            marker.setAttribute('refX', '9');
+            marker.setAttribute('refY', '3.5');
+        }
+        
         const container = this.template.querySelector('.canvas-container');
         if (container) {
             container.addEventListener('keydown', this.handleKeyDown.bind(this));
+            container.addEventListener('keyup', this.handleKeyUp.bind(this));
         }
     }
     
     // =========================================================================
-    // ZOOM HELPERS
+    // COMPUTED PROPERTIES - ZOOM
     // =========================================================================
     
-    applyZoom() {
-        // Zoom is applied through the viewBox calculation in the getter
-        // This method can be extended for center-based zooming
-    }
-    
-    // =========================================================================
-    // RENDERING GETTERS
-    // =========================================================================
-    
-    /**
-     * Calculate the actual viewBox based on base viewBox and zoom level
-     * Zooming in (zoom > 1) = smaller viewBox = things appear bigger
-     * Zooming out (zoom < 1) = larger viewBox = things appear smaller
-     */
     get viewBoxString() {
         const scaledWidth = this.baseViewBox.width / this.zoom;
         const scaledHeight = this.baseViewBox.height / this.zoom;
-        
-        // Keep the center point the same when zooming
         const centerX = this.baseViewBox.x + this.baseViewBox.width / 2;
         const centerY = this.baseViewBox.y + this.baseViewBox.height / 2;
-        const x = centerX - scaledWidth / 2;
-        const y = centerY - scaledHeight / 2;
-        
-        return `${x} ${y} ${scaledWidth} ${scaledHeight}`;
+        const viewBoxX = centerX - scaledWidth / 2;
+        const viewBoxY = centerY - scaledHeight / 2;
+        return `${viewBoxX} ${viewBoxY} ${scaledWidth} ${scaledHeight}`;
     }
     
     get zoomPercentage() {
         return Math.round(this.zoom * 100);
     }
     
-    // Temp connection line coordinates - from source element center to mouse position
+    // =========================================================================
+    // COMPUTED PROPERTIES - TEMPORARY CONNECTION LINE
+    // =========================================================================
+    
     get tempLineX1() {
-        if (!this.connectionStartId) return 0;
-        const el = this.elements.find(e => e.id === this.connectionStartId);
-        if (!el) return 0;
-        
-        // If we have a start point (from connection handle), use that
-        if (this.connectionStartPoint) {
-            return this.connectionStartPoint.x;
-        }
-        // Otherwise use element center
-        return el.x + el.width / 2;
+        return this.connectionStartPoint ? this.connectionStartPoint.x : 0;
     }
     
     get tempLineY1() {
-        if (!this.connectionStartId) return 0;
-        const el = this.elements.find(e => e.id === this.connectionStartId);
-        if (!el) return 0;
-        
-        if (this.connectionStartPoint) {
-            return this.connectionStartPoint.y;
-        }
-        return el.y + el.height / 2;
+        return this.connectionStartPoint ? this.connectionStartPoint.y : 0;
     }
     
     get tempLineX2() {
@@ -321,13 +576,15 @@ export default class ProcessCanvas extends LightningElement {
         return this.tempConnectionEnd ? this.tempConnectionEnd.y : this.tempLineY1;
     }
     
-    // Get rendered elements with all computed properties
+    // =========================================================================
+    // COMPUTED PROPERTIES - RENDERED ELEMENTS
+    // =========================================================================
+    
     get renderedElements() {
         return this.elements.map(el => {
             const typeConfig = ELEMENT_TYPES[el.type] || ELEMENT_TYPES.UserTask;
             const isSelected = el.id === this.selectedElementId;
             
-            // Pre-calculate all geometry values
             const centerX = el.x + el.width / 2;
             const centerY = el.y + el.height / 2;
             const radius = el.width / 2;
@@ -336,52 +593,41 @@ export default class ProcessCanvas extends LightningElement {
             const isCircle = typeConfig.shape === 'circle';
             const isRect = typeConfig.shape === 'rect';
             
-            // Diamond points for gateways (with rounded corners effect)
             const diamondPoints = isDiamond 
                 ? `${centerX},${el.y} ${el.x + el.width},${centerY} ${centerX},${el.y + el.height} ${el.x},${centerY}`
                 : '';
             
-            // Gateway icon paths - centered in diamond
             const iconOffset = 10;
             const xIconPath = `M${centerX - iconOffset} ${centerY - iconOffset} L${centerX + iconOffset} ${centerY + iconOffset} M${centerX + iconOffset} ${centerY - iconOffset} L${centerX - iconOffset} ${centerY + iconOffset}`;
             const plusIconPath = `M${centerX} ${centerY - iconOffset} L${centerX} ${centerY + iconOffset} M${centerX - iconOffset} ${centerY} L${centerX + iconOffset} ${centerY}`;
             const circleIconRadius = 10;
             
-            // Icon position - centered in element
-            const iconSize = 16;
-            const iconX = centerX - iconSize / 2;
-            const iconY = centerY - iconSize / 2 - 5; // Slightly above center for events with labels
-            
-            // Label position - BELOW the element (not inside)
-            const labelOffset = 8; // Gap between element and label
+            const labelOffset = 8;
             let labelY;
+            let labelInside = false;
+            
             if (isCircle) {
-                labelY = el.y + el.height + labelOffset + 12; // Below circle
+                labelY = el.y + el.height + labelOffset;
             } else if (isDiamond) {
-                labelY = el.y + el.height + labelOffset + 12; // Below diamond
+                labelY = el.y + el.height + labelOffset;
             } else {
-                labelY = centerY; // Center for rectangles (tasks show name inside)
+                labelY = centerY;
+                labelInside = true;
             }
             
-            // For tasks (rectangles), label goes inside; for events/gateways, below
-            const labelInside = isRect;
-            
-            // Connection points - different positions for diamonds vs others
             let connPointTopX, connPointTopY, connPointRightX, connPointRightY;
             let connPointBottomX, connPointBottomY, connPointLeftX, connPointLeftY;
             
-            if (isDiamond) {
-                // For diamonds: connection points on the 4 corners of the diamond
+            if (isCircle) {
                 connPointTopX = centerX;
-                connPointTopY = el.y;
-                connPointRightX = el.x + el.width;
+                connPointTopY = centerY - radius;
+                connPointRightX = centerX + radius;
                 connPointRightY = centerY;
                 connPointBottomX = centerX;
-                connPointBottomY = el.y + el.height;
-                connPointLeftX = el.x;
+                connPointBottomY = centerY + radius;
+                connPointLeftX = centerX - radius;
                 connPointLeftY = centerY;
-            } else if (isCircle) {
-                // For circles: connection points on the circumference
+            } else if (isDiamond) {
                 connPointTopX = centerX;
                 connPointTopY = el.y;
                 connPointRightX = el.x + el.width;
@@ -391,7 +637,6 @@ export default class ProcessCanvas extends LightningElement {
                 connPointLeftX = el.x;
                 connPointLeftY = centerY;
             } else {
-                // For rectangles: connection points on edges
                 connPointTopX = centerX;
                 connPointTopY = el.y;
                 connPointRightX = el.x + el.width;
@@ -401,77 +646,59 @@ export default class ProcessCanvas extends LightningElement {
                 connPointLeftX = el.x;
                 connPointLeftY = centerY;
             }
+            
+            let cfcContribution = 0;
+            let showComplexityBadge = false;
+            let complexityBadgeColor = null;
+            let complexityBadgeText = '';
+            
+            if (typeConfig.isGateway && typeConfig.cfcFormula) {
+                const outgoing = this.getOutgoingFlows(el.id).length;
+                
+                if (outgoing > 1) {
+                    cfcContribution = typeConfig.cfcFormula(outgoing);
+                    
+                    if (cfcContribution > 0) {
+                        showComplexityBadge = true;
+                        complexityBadgeColor = this.getCfcBadgeColor(cfcContribution);
+                        complexityBadgeText = `+${cfcContribution}`;
+                    }
+                }
+            }
+            
+            const badgeX = el.x + el.width - 8;
+            const badgeY = el.y - 8;
+            
+            const selectionPoints = isDiamond
+                ? `${centerX},${el.y - 4} ${el.x + el.width + 4},${centerY} ${centerX},${el.y + el.height + 4} ${el.x - 4},${centerY}`
+                : '';
             
             return {
                 ...el,
                 ...typeConfig,
-                isSelected,
-                cssClass: `bpmn-element bpmn-${el.type.toLowerCase()} ${isSelected ? 'selected' : ''}`,
-                
-                // Computed geometry
                 centerX,
                 centerY,
                 radius,
                 innerRadius,
+                isDiamond,
+                isCircle,
+                isRect,
+                isSelected,
                 diamondPoints,
+                selectionPoints,
+                isXIcon: typeConfig.icon === 'x',
+                isPlusIcon: typeConfig.icon === 'plus',
+                isCircleIcon: typeConfig.icon === 'o',
                 xIconPath,
                 plusIconPath,
                 circleIconRadius,
-                
-                // Shape type booleans (for template conditionals)
-                isCircle,
-                isRect,
-                isDiamond,
-                
-                // Icon type booleans
-                isXIcon: typeConfig.icon === 'x',
-                isPlusIcon: typeConfig.icon === 'plus',
-                isCircleIcon: typeConfig.icon === 'circle',
                 showUserIcon: typeConfig.icon === 'user',
                 showServiceIcon: typeConfig.icon === 'service',
-                showScriptIcon: typeConfig.icon === 'script',
-                showTimerIcon: typeConfig.icon === 'timer',
-                showMessageIcon: typeConfig.icon === 'message',
-                
-                // Icon transform for task icons (top-left corner)
-                iconTransform: `translate(${el.x + 5}, ${el.y + 5})`,
-                
-                // Icon position (centered) for event icons
-                iconX,
-                iconY,
-                iconSize,
-                
-                // Timer icon path (clock hands)
-                timerHandV: `M${centerX} ${centerY} L${centerX} ${centerY - 8}`,
-                timerHandH: `M${centerX} ${centerY} L${centerX + 6} ${centerY}`,
-                
-                // Message icon coordinates
-                messageX: centerX - 10,
-                messageY: centerY - 7,
-                messageWidth: 20,
-                messageHeight: 14,
-                messagePath: `M${centerX - 10} ${centerY - 7} L${centerX} ${centerY} L${centerX + 10} ${centerY - 7}`,
-                
-                // Selection - for POC style, we overlay the shape stroke
-                selectionX: el.x - 4,
-                selectionY: el.y - 4,
-                selectionWidth: el.width + 8,
-                selectionHeight: el.height + 8,
-                
-                // For diamond selection, use same points with slight offset
-                selectionDiamondPoints: isDiamond 
-                    ? `${centerX},${el.y - 4} ${el.x + el.width + 4},${centerY} ${centerX},${el.y + el.height + 4} ${el.x - 4},${centerY}`
-                    : '',
-                
-                // Label position - below for events/gateways, inside for tasks
+                iconTransform: `translate(${el.x + 8}, ${el.y + 8})`,
                 labelX: centerX,
                 labelY,
                 labelInside,
-                
-                // Stroke dasharray for dashed elements
                 strokeDasharray: typeConfig.dashed ? '5,3' : 'none',
-                
-                // Connection points
                 connPointTopX,
                 connPointTopY,
                 connPointRightX,
@@ -479,12 +706,27 @@ export default class ProcessCanvas extends LightningElement {
                 connPointBottomX,
                 connPointBottomY,
                 connPointLeftX,
-                connPointLeftY
+                connPointLeftY,
+                cssClass: `bpmn-element ${isSelected ? 'selected' : ''}`,
+                cfcContribution,
+                cfcType: typeConfig.cfcType || null,
+                showComplexityBadge,
+                complexityBadgeColor,
+                complexityBadgeText,
+                badgeX,
+                badgeY,
+                badgeCenterX: badgeX + 10,
+                badgeCenterY: badgeY + 8,
+                isHighRisk: typeConfig.isHighRisk || false,
+                complexityDescription: typeConfig.complexityDescription || ''
             };
         });
     }
     
-    // Get rendered connections with path data
+    // =========================================================================
+    // COMPUTED PROPERTIES - RENDERED CONNECTIONS
+    // =========================================================================
+    
     get renderedConnections() {
         return this.connections.map(conn => {
             const typeConfig = CONNECTION_TYPES[conn.type] || CONNECTION_TYPES.SequenceFlow;
@@ -493,7 +735,6 @@ export default class ProcessCanvas extends LightningElement {
             
             if (!sourceEl || !targetEl) return null;
             
-            // Pass the stored sides to the path calculation
             const path = this.calculateConnectionPath(sourceEl, targetEl, conn.sourceSide, conn.targetSide);
             
             return {
@@ -507,17 +748,17 @@ export default class ProcessCanvas extends LightningElement {
         }).filter(Boolean);
     }
     
-    // Calculate SVG path between two elements using stored connection sides
+    // =========================================================================
+    // CONNECTION PATH CALCULATION
+    // =========================================================================
+    
     calculateConnectionPath(source, target, sourceSide, targetSide) {
-        // Get the exact connection points based on stored sides
         const sourcePoint = this.getConnectionPointAtSide(source, sourceSide || 'right');
         const targetPoint = this.getConnectionPointAtSide(target, targetSide || 'left');
         
-        // Create orthogonal path with proper routing
         return this.createOrthogonalPath(sourcePoint, targetPoint, sourceSide, targetSide);
     }
     
-    // Get connection point at a specific side
     getConnectionPointAtSide(element, side) {
         const centerX = element.x + element.width / 2;
         const centerY = element.y + element.height / 2;
@@ -530,292 +771,300 @@ export default class ProcessCanvas extends LightningElement {
                 case 'right': return { x: centerX + radius, y: centerY };
                 case 'bottom': return { x: centerX, y: centerY + radius };
                 case 'left': return { x: centerX - radius, y: centerY };
+                default: return { x: centerX + radius, y: centerY };
             }
         } else if (typeConfig.shape === 'diamond') {
-            const halfWidth = element.width / 2;
-            const halfHeight = element.height / 2;
             switch (side) {
                 case 'top': return { x: centerX, y: element.y };
                 case 'right': return { x: element.x + element.width, y: centerY };
                 case 'bottom': return { x: centerX, y: element.y + element.height };
                 case 'left': return { x: element.x, y: centerY };
+                default: return { x: element.x + element.width, y: centerY };
             }
         } else {
-            // Rectangle
             switch (side) {
                 case 'top': return { x: centerX, y: element.y };
                 case 'right': return { x: element.x + element.width, y: centerY };
                 case 'bottom': return { x: centerX, y: element.y + element.height };
                 case 'left': return { x: element.x, y: centerY };
+                default: return { x: element.x + element.width, y: centerY };
             }
         }
-        return { x: centerX, y: centerY };
     }
     
-    // Create orthogonal path with rounded corners based on exit/entry sides
-    // The path always goes STRAIGHT out from the source side first, then turns toward target
+    /**
+     * @description Creates an orthogonal (right-angle) path with rounded corners
+     * Uses simple L-shaped paths when possible, only adds complexity when needed
+     * 
+     * ROUTING LOGIC:
+     * - If exiting right and target is to the right: horizontal → corner → vertical → corner → horizontal
+     * - If exiting bottom and target is below: vertical → corner → horizontal (simple L-shape)
+     * - If direction conflicts (e.g., exit top but target is below): use S-shape with midpoint
+     * 
+     * @param {Object} from - Starting point {x, y}
+     * @param {Object} to - Ending point {x, y}
+     * @param {String} sourceSide - Side of source element (top/right/bottom/left)
+     * @param {String} targetSide - Side of target element (top/right/bottom/left)
+     * @returns {String} SVG path string
+     */
     createOrthogonalPath(from, to, sourceSide, targetSide) {
-        const radius = 10; // Corner radius
-        
-        // Determine exit and entry directions
-        // sourceSide: which side of source element we exit from
-        // targetSide: which side of target element we enter
-        
-        // Calculate minimum extension distance (how far to go before first turn)
-        const minExtension = 20;
-        
+        const r = 8; // Corner radius
         let path = `M ${from.x} ${from.y}`;
         
-        // First segment: go straight out from source in the direction of sourceSide
-        let seg1End = { x: from.x, y: from.y };
+        // Direction helpers
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const goingRight = dx > 0;
+        const goingDown = dy > 0;
+        const goingLeft = dx < 0;
+        const goingUp = dy < 0;
         
-        switch (sourceSide) {
-            case 'top':
-                seg1End.y = Math.min(from.y - minExtension, to.y - minExtension);
-                break;
-            case 'bottom':
-                seg1End.y = Math.max(from.y + minExtension, to.y + minExtension);
-                break;
-            case 'left':
-                seg1End.x = Math.min(from.x - minExtension, to.x - minExtension);
-                break;
-            case 'right':
-                seg1End.x = Math.max(from.x + minExtension, to.x + minExtension);
-                break;
+        // If points are nearly aligned, draw straight line
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) {
+            return path + ` L ${to.x} ${to.y}`;
         }
         
-        // Last segment: go straight into target from targetSide direction
-        let seg3Start = { x: to.x, y: to.y };
-        
-        switch (targetSide) {
-            case 'top':
-                seg3Start.y = to.y - minExtension;
-                break;
-            case 'bottom':
-                seg3Start.y = to.y + minExtension;
-                break;
-            case 'left':
-                seg3Start.x = to.x - minExtension;
-                break;
-            case 'right':
-                seg3Start.x = to.x + minExtension;
-                break;
+        // Straight horizontal line (same Y)
+        if (Math.abs(dy) < 5) {
+            return path + ` L ${to.x} ${to.y}`;
         }
         
-        // Determine if we need one corner or two
-        const isSourceVertical = sourceSide === 'top' || sourceSide === 'bottom';
-        const isTargetVertical = targetSide === 'top' || targetSide === 'bottom';
+        // Straight vertical line (same X)
+        if (Math.abs(dx) < 5) {
+            return path + ` L ${to.x} ${to.y}`;
+        }
         
-        if (isSourceVertical !== isTargetVertical) {
-            // One corner needed - source and target are perpendicular
-            // Corner point is where vertical meets horizontal
-            const cornerX = isSourceVertical ? from.x : to.x;
-            const cornerY = isSourceVertical ? to.y : from.y;
+        // =====================================================================
+        // SIMPLE L-SHAPE PATHS (one corner only)
+        // These are the preferred paths when source direction aligns with target
+        // =====================================================================
+        
+        // Exiting RIGHT, target is to the right and target expects LEFT entry
+        // Path: → corner ↓ (or ↑)
+        if (sourceSide === 'right' && goingRight && targetSide === 'left') {
+            // Simple case: go right, then turn to target Y, then go right to target
+            // Actually need 2 corners for this, handled below
+        }
+        
+        // Exiting BOTTOM, target is below - simple L-shape
+        // Path: ↓ corner → (or ←)
+        if (sourceSide === 'bottom' && goingDown) {
+            const cornerY = to.y; // Turn at target's Y level
             
-            // Adjust for target entry
-            const adjCornerX = isSourceVertical ? from.x : (targetSide === 'left' ? to.x - minExtension : (targetSide === 'right' ? to.x + minExtension : to.x));
-            const adjCornerY = isSourceVertical ? (targetSide === 'top' ? to.y - minExtension : (targetSide === 'bottom' ? to.y + minExtension : to.y)) : from.y;
-            
-            const finalCornerX = isSourceVertical ? from.x : adjCornerX;
-            const finalCornerY = isSourceVertical ? adjCornerY : from.y;
-            
-            // Calculate curve
-            const r = Math.min(radius, 
-                Math.abs(finalCornerY - from.y) / 2, 
-                Math.abs(to.x - finalCornerX) / 2,
-                Math.abs(finalCornerX - from.x) / 2,
-                Math.abs(to.y - finalCornerY) / 2
-            );
-            
-            if (r < 3) {
-                path += ` L ${finalCornerX} ${finalCornerY} L ${to.x} ${to.y}`;
-            } else {
-                if (isSourceVertical) {
-                    // Going vertical first, then horizontal
-                    const goingDown = finalCornerY > from.y;
-                    const goingRight = to.x > finalCornerX;
-                    const curveStartY = goingDown ? finalCornerY - r : finalCornerY + r;
-                    const curveEndX = goingRight ? finalCornerX + r : finalCornerX - r;
-                    path += ` L ${finalCornerX} ${curveStartY} Q ${finalCornerX} ${finalCornerY} ${curveEndX} ${finalCornerY} L ${to.x} ${to.y}`;
-                } else {
-                    // Going horizontal first, then vertical
-                    const goingRight = finalCornerX > from.x;
-                    const goingDown = to.y > finalCornerY;
-                    const curveStartX = goingRight ? finalCornerX - r : finalCornerX + r;
-                    const curveEndY = goingDown ? finalCornerY + r : finalCornerY - r;
-                    path += ` L ${curveStartX} ${finalCornerY} Q ${finalCornerX} ${finalCornerY} ${finalCornerX} ${curveEndY} L ${to.x} ${to.y}`;
-                }
+            // Only use L-shape if we have room (target Y is below our exit)
+            if (to.y > from.y + r * 2) {
+                path += ` L ${from.x} ${cornerY - r}`;
+                path += ` Q ${from.x} ${cornerY} ${from.x + (goingRight ? r : -r)} ${cornerY}`;
+                path += ` L ${to.x} ${to.y}`;
+                return path;
             }
+        }
+        
+        // Exiting TOP, target is above - simple L-shape
+        // Path: ↑ corner → (or ←)
+        if (sourceSide === 'top' && goingUp) {
+            const cornerY = to.y; // Turn at target's Y level
+            
+            // Only use L-shape if we have room
+            if (to.y < from.y - r * 2) {
+                path += ` L ${from.x} ${cornerY + r}`;
+                path += ` Q ${from.x} ${cornerY} ${from.x + (goingRight ? r : -r)} ${cornerY}`;
+                path += ` L ${to.x} ${to.y}`;
+                return path;
+            }
+        }
+        
+        // Exiting LEFT, target is to the left - simple L-shape
+        // Path: ← corner ↓ (or ↑)
+        if (sourceSide === 'left' && goingLeft) {
+            const cornerX = to.x; // Turn at target's X level
+            
+            if (to.x < from.x - r * 2) {
+                path += ` L ${cornerX + r} ${from.y}`;
+                path += ` Q ${cornerX} ${from.y} ${cornerX} ${from.y + (goingDown ? r : -r)}`;
+                path += ` L ${to.x} ${to.y}`;
+                return path;
+            }
+        }
+        
+        // Exiting RIGHT, target is to the right - simple L-shape
+        // Path: → corner ↓ (or ↑)  
+        if (sourceSide === 'right' && goingRight) {
+            const cornerX = to.x; // Turn at target's X level
+            
+            if (to.x > from.x + r * 2) {
+                path += ` L ${cornerX - r} ${from.y}`;
+                path += ` Q ${cornerX} ${from.y} ${cornerX} ${from.y + (goingDown ? r : -r)}`;
+                path += ` L ${to.x} ${to.y}`;
+                return path;
+            }
+        }
+        
+        // =====================================================================
+        // S-SHAPE PATHS (two corners) - when direction conflicts
+        // Used when we exit one way but need to go the opposite direction
+        // =====================================================================
+        
+        const horizontalExit = sourceSide === 'left' || sourceSide === 'right';
+        const verticalExit = sourceSide === 'top' || sourceSide === 'bottom';
+        
+        if (horizontalExit) {
+            // Source exits horizontally (left or right)
+            const exitRight = sourceSide === 'right';
+            
+            // Calculate midpoint X
+            let midX;
+            if (exitRight) {
+                midX = Math.max(from.x + 30, (from.x + to.x) / 2);
+            } else {
+                midX = Math.min(from.x - 30, (from.x + to.x) / 2);
+            }
+            
+            // Build S-path with two corners
+            const corner1X = exitRight ? midX - r : midX + r;
+            const firstCornerY = goingDown ? from.y + r : from.y - r;
+            const secondCornerY = goingDown ? to.y - r : to.y + r;
+            const corner2X = goingRight ? midX + r : midX - r;
+            
+            path += ` L ${corner1X} ${from.y}`;
+            path += ` Q ${midX} ${from.y} ${midX} ${firstCornerY}`;
+            path += ` L ${midX} ${secondCornerY}`;
+            path += ` Q ${midX} ${to.y} ${corner2X} ${to.y}`;
+            path += ` L ${to.x} ${to.y}`;
+            
+        } else if (verticalExit) {
+            // Source exits vertically (top or bottom)
+            const exitBottom = sourceSide === 'bottom';
+            
+            // Calculate midpoint Y
+            let midY;
+            if (exitBottom) {
+                midY = Math.max(from.y + 30, (from.y + to.y) / 2);
+            } else {
+                midY = Math.min(from.y - 30, (from.y + to.y) / 2);
+            }
+            
+            // Build S-path with two corners
+            const corner1Y = exitBottom ? midY - r : midY + r;
+            const firstCornerX = goingRight ? from.x + r : from.x - r;
+            const secondCornerX = goingRight ? to.x - r : to.x + r;
+            const corner2Y = goingDown ? midY + r : midY - r;
+            
+            path += ` L ${from.x} ${corner1Y}`;
+            path += ` Q ${from.x} ${midY} ${firstCornerX} ${midY}`;
+            path += ` L ${secondCornerX} ${midY}`;
+            path += ` Q ${to.x} ${midY} ${to.x} ${corner2Y}`;
+            path += ` L ${to.x} ${to.y}`;
+            
         } else {
-            // Two corners needed - both source and target are same orientation
-            if (isSourceVertical) {
-                // Both vertical - S-shape with horizontal middle
-                const midY = (from.y + to.y) / 2;
-                
-                // First corner
-                const corner1 = { x: from.x, y: midY };
-                // Second corner
-                const corner2 = { x: to.x, y: midY };
-                
-                const r = Math.min(radius, 
-                    Math.abs(midY - from.y) / 2, 
-                    Math.abs(to.x - from.x) / 2,
-                    Math.abs(to.y - midY) / 2
-                );
-                
-                if (r < 3) {
-                    path += ` L ${corner1.x} ${corner1.y} L ${corner2.x} ${corner2.y} L ${to.x} ${to.y}`;
-                } else {
-                    const goingDown1 = midY > from.y;
-                    const goingRight = to.x > from.x;
-                    const goingDown2 = to.y > midY;
-                    
-                    // First corner curves
-                    const c1StartY = goingDown1 ? midY - r : midY + r;
-                    const c1EndX = goingRight ? from.x + r : from.x - r;
-                    
-                    // Second corner curves
-                    const c2StartX = goingRight ? to.x - r : to.x + r;
-                    const c2EndY = goingDown2 ? midY + r : midY - r;
-                    
-                    path += ` L ${from.x} ${c1StartY}`;
-                    path += ` Q ${from.x} ${midY} ${c1EndX} ${midY}`;
-                    path += ` L ${c2StartX} ${midY}`;
-                    path += ` Q ${to.x} ${midY} ${to.x} ${c2EndY}`;
-                    path += ` L ${to.x} ${to.y}`;
-                }
-            } else {
-                // Both horizontal - S-shape with vertical middle
-                const midX = (from.x + to.x) / 2;
-                
-                const r = Math.min(radius, 
-                    Math.abs(midX - from.x) / 2, 
-                    Math.abs(to.y - from.y) / 2,
-                    Math.abs(to.x - midX) / 2
-                );
-                
-                if (r < 3) {
-                    path += ` L ${midX} ${from.y} L ${midX} ${to.y} L ${to.x} ${to.y}`;
-                } else {
-                    const goingRight1 = midX > from.x;
-                    const goingDown = to.y > from.y;
-                    const goingRight2 = to.x > midX;
-                    
-                    // First corner curves
-                    const c1StartX = goingRight1 ? midX - r : midX + r;
-                    const c1EndY = goingDown ? from.y + r : from.y - r;
-                    
-                    // Second corner curves
-                    const c2StartY = goingDown ? to.y - r : to.y + r;
-                    const c2EndX = goingRight2 ? midX + r : midX - r;
-                    
-                    path += ` L ${c1StartX} ${from.y}`;
-                    path += ` Q ${midX} ${from.y} ${midX} ${c1EndY}`;
-                    path += ` L ${midX} ${c2StartY}`;
-                    path += ` Q ${midX} ${to.y} ${c2EndX} ${to.y}`;
-                    path += ` L ${to.x} ${to.y}`;
-                }
-            }
+            // Fallback: straight line
+            path += ` L ${to.x} ${to.y}`;
         }
         
         return path;
     }
     
-    // Get point on element boundary closest to target point
-    getConnectionPoint(element, targetPoint) {
-        const centerX = element.x + element.width / 2;
-        const centerY = element.y + element.height / 2;
-        const typeConfig = ELEMENT_TYPES[element.type] || ELEMENT_TYPES.UserTask;
+    calculateBestSides(sourceEl, targetEl) {
+        const sourceCenter = {
+            x: sourceEl.x + sourceEl.width / 2,
+            y: sourceEl.y + sourceEl.height / 2
+        };
+        const targetCenter = {
+            x: targetEl.x + targetEl.width / 2,
+            y: targetEl.y + targetEl.height / 2
+        };
         
-        // Calculate direction vector from center to target
-        const dx = targetPoint.x - centerX;
-        const dy = targetPoint.y - centerY;
+        const dx = targetCenter.x - sourceCenter.x;
+        const dy = targetCenter.y - sourceCenter.y;
         
-        if (typeConfig.shape === 'circle') {
-            const radius = element.width / 2;
-            const length = Math.sqrt(dx * dx + dy * dy);
-            if (length === 0) return { x: centerX + radius, y: centerY };
-            
-            return {
-                x: centerX + (dx / length) * radius,
-                y: centerY + (dy / length) * radius
-            };
-        } else if (typeConfig.shape === 'diamond') {
-            // Diamond vertices are at top, right, bottom, left
-            const halfWidth = element.width / 2;
-            const halfHeight = element.height / 2;
-            
-            // For a diamond, we need to find where the line from center intersects the edge
-            // Diamond edges connect: top-right, right-bottom, bottom-left, left-top
-            
-            if (dx === 0 && dy === 0) return { x: centerX, y: centerY - halfHeight };
-            
-            // Normalize direction
-            const length = Math.sqrt(dx * dx + dy * dy);
-            const ndx = dx / length;
-            const ndy = dy / length;
-            
-            // The diamond can be described by |x/halfWidth| + |y/halfHeight| = 1
-            // We need to find t such that |t*ndx/halfWidth| + |t*ndy/halfHeight| = 1
-            // t = 1 / (|ndx|/halfWidth + |ndy|/halfHeight)
-            const t = 1 / (Math.abs(ndx) / halfWidth + Math.abs(ndy) / halfHeight);
-            
-            return {
-                x: centerX + ndx * t,
-                y: centerY + ndy * t
-            };
-        } else {
-            // Rectangle - find intersection with rectangle edge
-            const halfWidth = element.width / 2;
-            const halfHeight = element.height / 2;
-            
-            if (dx === 0 && dy === 0) return { x: centerX + halfWidth, y: centerY };
-            
-            // Calculate intersection with each edge and find the closest one
-            let t = Infinity;
-            
-            // Right edge (x = halfWidth)
+        let sourceSide, targetSide;
+        
+        if (Math.abs(dx) > Math.abs(dy)) {
             if (dx > 0) {
-                const tRight = halfWidth / dx;
-                const yAtRight = dy * tRight;
-                if (Math.abs(yAtRight) <= halfHeight && tRight < t) {
-                    t = tRight;
-                }
+                sourceSide = 'right';
+                targetSide = 'left';
+            } else {
+                sourceSide = 'left';
+                targetSide = 'right';
             }
-            // Left edge (x = -halfWidth)
-            if (dx < 0) {
-                const tLeft = -halfWidth / dx;
-                const yAtLeft = dy * tLeft;
-                if (Math.abs(yAtLeft) <= halfHeight && tLeft < t) {
-                    t = tLeft;
-                }
-            }
-            // Bottom edge (y = halfHeight)
+        } else {
             if (dy > 0) {
-                const tBottom = halfHeight / dy;
-                const xAtBottom = dx * tBottom;
-                if (Math.abs(xAtBottom) <= halfWidth && tBottom < t) {
-                    t = tBottom;
-                }
+                sourceSide = 'bottom';
+                targetSide = 'top';
+            } else {
+                sourceSide = 'top';
+                targetSide = 'bottom';
             }
-            // Top edge (y = -halfHeight)
-            if (dy < 0) {
-                const tTop = -halfHeight / dy;
-                const xAtTop = dx * tTop;
-                if (Math.abs(xAtTop) <= halfWidth && tTop < t) {
-                    t = tTop;
-                }
-            }
-            
-            return {
-                x: centerX + dx * t,
-                y: centerY + dy * t
+        }
+        
+        return { sourceSide, targetSide };
+    }
+    
+    // =========================================================================
+    // EVENT HANDLERS - ELEMENT
+    // =========================================================================
+    
+    handleElementMouseDown(event) {
+        if (this.readOnly) return;
+        
+        event.stopPropagation();
+        const elementId = event.currentTarget.dataset.id;
+        
+        this.selectElement(elementId);
+        
+        const element = this.elements.find(el => el.id === elementId);
+        if (element) {
+            this.isDragging = true;
+            const svgPoint = this.getSvgPoint(event);
+            this.dragOffset = {
+                x: svgPoint.x - element.x,
+                y: svgPoint.y - element.y
             };
         }
     }
     
+    handleElementDoubleClick(event) {
+        event.stopPropagation();
+    }
+    
+    handleConnectionPointMouseDown(event) {
+        if (this.readOnly) return;
+        
+        event.stopPropagation();
+        const elementId = event.currentTarget.dataset.elementid;
+        const position = event.currentTarget.dataset.position;
+        
+        if (!this.isConnecting) {
+            this.isConnecting = true;
+            this.connectionStartId = elementId;
+            this.connectionStartSide = position;
+            
+            const element = this.elements.find(el => el.id === elementId);
+            if (element) {
+                this.connectionStartPoint = this.getConnectionPointAtSide(element, position);
+                this.tempConnectionEnd = { ...this.connectionStartPoint };
+            }
+        } else {
+            if (elementId !== this.connectionStartId) {
+                this.createConnection(
+                    this.connectionStartId, 
+                    elementId, 
+                    this.connectionStartSide, 
+                    position
+                );
+            }
+            this.cancelConnection();
+        }
+    }
+    
+    handleConnectionClick(event) {
+        event.stopPropagation();
+        const connectionId = event.currentTarget.dataset.id;
+        this.selectConnection(connectionId);
+    }
+    
     // =========================================================================
-    // EVENT HANDLERS - Mouse
+    // EVENT HANDLERS - CANVAS (FIXED PAN MODE)
     // =========================================================================
     
     handleCanvasMouseDown(event) {
@@ -823,9 +1072,7 @@ export default class ProcessCanvas extends LightningElement {
         
         // Middle mouse button always pans
         if (event.button === 1) {
-            this.isPanning = true;
-            this.panStart = { x: event.clientX, y: event.clientY };
-            this.panViewBoxStart = { x: this.baseViewBox.x, y: this.baseViewBox.y };
+            this.startPanning(event);
             event.preventDefault();
             return;
         }
@@ -834,16 +1081,15 @@ export default class ProcessCanvas extends LightningElement {
         if (event.button === 0) {
             // Shift+click for panning
             if (event.shiftKey) {
-                this.isPanning = true;
-                this.panStart = { x: event.clientX, y: event.clientY };
-                this.panViewBoxStart = { x: this.baseViewBox.x, y: this.baseViewBox.y };
+                this.startPanning(event);
                 event.preventDefault();
                 return;
             }
             
-            // Click on background - start panning OR clear selection
+            // Click on background - start panning AND clear selection
             if (event.target.classList.contains('canvas-background') || 
                 event.target.classList.contains('canvas-svg')) {
+                
                 // Cancel connection if in progress
                 if (this.isConnecting) {
                     this.cancelConnection();
@@ -851,13 +1097,33 @@ export default class ProcessCanvas extends LightningElement {
                 }
                 
                 // Start panning on background drag
-                this.isPanning = true;
-                this.panStart = { x: event.clientX, y: event.clientY };
-                this.panViewBoxStart = { x: this.baseViewBox.x, y: this.baseViewBox.y };
+                this.startPanning(event);
                 
                 // Also clear selection
                 this.clearSelection();
             }
+        }
+    }
+    
+    startPanning(event) {
+        this.isPanning = true;
+        this.panStart = { x: event.clientX, y: event.clientY };
+        this.panViewBoxStart = { x: this.baseViewBox.x, y: this.baseViewBox.y };
+        
+        // Add panning class to container for cursor
+        const container = this.template.querySelector('.canvas-container');
+        if (container) {
+            container.classList.add('panning');
+        }
+    }
+    
+    stopPanning() {
+        this.isPanning = false;
+        
+        // Remove panning class from container
+        const container = this.template.querySelector('.canvas-container');
+        if (container) {
+            container.classList.remove('panning');
         }
     }
     
@@ -866,202 +1132,89 @@ export default class ProcessCanvas extends LightningElement {
         if (this.isPanning) {
             const dx = (event.clientX - this.panStart.x) / this.zoom;
             const dy = (event.clientY - this.panStart.y) / this.zoom;
+            
             this.baseViewBox = {
                 ...this.baseViewBox,
                 x: this.panViewBoxStart.x - dx,
                 y: this.panViewBoxStart.y - dy
             };
-            return;
-        }
-        
-        // Handle element dragging
-        if (this.isDragging && this.selectedElementId) {
+        } else if (this.isDragging && this.selectedElementId) {
             const svgPoint = this.getSvgPoint(event);
+            const newX = Math.round((svgPoint.x - this.dragOffset.x) / 10) * 10;
+            const newY = Math.round((svgPoint.y - this.dragOffset.y) / 10) * 10;
+            
             const index = this.elements.findIndex(el => el.id === this.selectedElementId);
             if (index !== -1) {
                 this.elements[index] = {
                     ...this.elements[index],
-                    x: svgPoint.x - this.dragOffset.x,
-                    y: svgPoint.y - this.dragOffset.y
+                    x: newX,
+                    y: newY
                 };
                 this.elements = [...this.elements];
             }
-            return;
-        }
-        
-        // Handle connection drawing - update temp line endpoint
-        if (this.isConnecting) {
+        } else if (this.isConnecting) {
             this.tempConnectionEnd = this.getSvgPoint(event);
-            return;
         }
     }
     
     handleCanvasMouseUp(event) {
         if (this.isPanning) {
-            this.isPanning = false;
-            return;
+            this.stopPanning();
         }
         
         if (this.isDragging) {
             this.isDragging = false;
             this.notifyCanvasChange();
-            return;
         }
         
-        // Handle connection creation
-        if (this.isConnecting) {
-            const svgPoint = this.getSvgPoint(event);
-            const targetElement = this.getElementAtPoint(svgPoint);
-            
-            if (targetElement && targetElement.id !== this.connectionStartId) {
-                // Determine target side based on where the line ends relative to target center
-                const targetCenter = {
-                    x: targetElement.x + targetElement.width / 2,
-                    y: targetElement.y + targetElement.height / 2
-                };
-                const dx = svgPoint.x - targetCenter.x;
-                const dy = svgPoint.y - targetCenter.y;
-                
-                let targetSide;
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    targetSide = dx > 0 ? 'right' : 'left';
-                } else {
-                    targetSide = dy > 0 ? 'bottom' : 'top';
-                }
-                
-                // Create connection with specific sides
-                this.createConnection(
-                    this.connectionStartId, 
-                    targetElement.id, 
-                    this.connectionStartSide, 
-                    targetSide
-                );
-            }
-            
-            // End connection mode
+        // If connecting and mouse up on empty space, cancel
+        if (this.isConnecting && (event.target.classList.contains('canvas-background') || 
+            event.target.classList.contains('canvas-svg'))) {
             this.cancelConnection();
+        }
+    }
+    
+    handleCanvasMouseLeave(event) {
+        // Stop operations when mouse leaves canvas
+        if (this.isPanning) {
+            this.stopPanning();
+        }
+        
+        if (this.isDragging) {
+            this.isDragging = false;
+            this.notifyCanvasChange();
         }
     }
     
     handleCanvasWheel(event) {
         event.preventDefault();
         
-        // Get mouse position before zoom
-        const svgPointBefore = this.getSvgPoint(event);
+        const delta = event.deltaY > 0 ? -0.1 : 0.1;
+        const newZoom = Math.max(0.25, Math.min(4, this.zoom + delta));
         
-        // Apply zoom
-        const delta = event.deltaY > 0 ? 0.9 : 1.1;
-        const newZoom = Math.max(0.3, Math.min(3, this.zoom * delta));
-        
-        if (newZoom !== this.zoom) {
-            this.zoom = newZoom;
-            
-            // Adjust viewBox to zoom toward mouse position
-            // This keeps the point under the mouse stationary
-            const svgPointAfter = this.getSvgPoint(event);
-            this.baseViewBox = {
-                ...this.baseViewBox,
-                x: this.baseViewBox.x + (svgPointBefore.x - svgPointAfter.x),
-                y: this.baseViewBox.y + (svgPointBefore.y - svgPointAfter.y)
-            };
-        }
+        this.zoom = newZoom;
     }
     
-    handleElementMouseDown(event) {
-        if (this.readOnly) return;
-        
-        const elementId = event.currentTarget.dataset.id;
-        this.selectElement(elementId);
-        
-        // Start dragging
-        this.isDragging = true;
-        const svgPoint = this.getSvgPoint(event);
-        const element = this.elements.find(el => el.id === elementId);
-        if (element) {
-            this.dragOffset = {
-                x: svgPoint.x - element.x,
-                y: svgPoint.y - element.y
-            };
-        }
-        
-        event.stopPropagation();
+    handleCanvasDragOver(event) {
+        event.preventDefault();
     }
     
-    handleElementDoubleClick(event) {
-        const elementId = event.currentTarget.dataset.id;
-        this.dispatchEvent(new CustomEvent('elementdoubleclick', {
-            detail: { elementId }
-        }));
-    }
-    
-    /**
-     * Start connection drawing from a connection point
-     */
-    handleConnectionPointMouseDown(event) {
-        if (this.readOnly) return;
-        
-        event.stopPropagation();
+    handleCanvasDrop(event) {
         event.preventDefault();
         
-        const elementId = event.currentTarget.dataset.elementid;
-        const position = event.currentTarget.dataset.position; // top, right, bottom, left
+        const elementType = event.dataTransfer.getData('elementType');
+        if (!elementType) return;
         
-        // Get the element to calculate start point
-        const element = this.elements.find(el => el.id === elementId);
-        if (!element) return;
+        const svgPoint = this.getSvgPoint(event);
+        const typeConfig = ELEMENT_TYPES[elementType];
         
-        // Calculate the connection point coordinates
-        const centerX = element.x + element.width / 2;
-        const centerY = element.y + element.height / 2;
-        let startPoint;
-        
-        switch (position) {
-            case 'top':
-                startPoint = { x: centerX, y: element.y };
-                break;
-            case 'right':
-                startPoint = { x: element.x + element.width, y: centerY };
-                break;
-            case 'bottom':
-                startPoint = { x: centerX, y: element.y + element.height };
-                break;
-            case 'left':
-                startPoint = { x: element.x, y: centerY };
-                break;
-            default:
-                startPoint = { x: centerX, y: centerY };
+        if (typeConfig) {
+            const x = svgPoint.x - typeConfig.width / 2;
+            const y = svgPoint.y - typeConfig.height / 2;
+            
+            this.addElement(elementType, x, y);
         }
-        
-        // Start connection mode
-        this.isConnecting = true;
-        this.connectionStartId = elementId;
-        this.connectionStartSide = position; // Store which side we started from
-        this.connectionStartPoint = startPoint;
-        this.tempConnectionEnd = startPoint; // Initialize to same point
-        
-        console.log('Started connection from element:', elementId, 'at position:', position);
     }
-    
-    handleConnectionClick(event) {
-        const connectionId = event.currentTarget.dataset.id;
-        this.selectConnection(connectionId);
-        event.stopPropagation();
-    }
-    
-    /**
-     * Cancel connection drawing
-     */
-    cancelConnection() {
-        this.isConnecting = false;
-        this.connectionStartId = null;
-        this.connectionStartSide = null;
-        this.connectionStartPoint = null;
-        this.tempConnectionEnd = null;
-    }
-    
-    // =========================================================================
-    // EVENT HANDLERS - Keyboard
-    // =========================================================================
     
     handleKeyDown(event) {
         if (this.readOnly) return;
@@ -1073,66 +1226,30 @@ export default class ProcessCanvas extends LightningElement {
                 event.preventDefault();
                 break;
             case 'Escape':
-                this.clearSelection();
-                this.cancelConnection();
-                break;
-            case '+':
-            case '=':
-                if (event.ctrlKey || event.metaKey) {
-                    this.zoomIn();
-                    event.preventDefault();
+                if (this.isConnecting) {
+                    this.cancelConnection();
+                } else {
+                    this.clearSelection();
                 }
                 break;
-            case '-':
-                if (event.ctrlKey || event.metaKey) {
-                    this.zoomOut();
-                    event.preventDefault();
-                }
-                break;
-            case '0':
-                if (event.ctrlKey || event.metaKey) {
-                    this.zoomFit();
-                    event.preventDefault();
-                }
+            default:
                 break;
         }
     }
     
-    // =========================================================================
-    // EVENT HANDLERS - Drag & Drop from Palette
-    // =========================================================================
-    
-    handleCanvasDragOver(event) {
-        if (this.readOnly) return;
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'copy';
-    }
-    
-    handleCanvasDrop(event) {
-        if (this.readOnly) return;
-        event.preventDefault();
-        
-        const elementType = event.dataTransfer.getData('elementType');
-        if (!elementType) return;
-        
-        const svgPoint = this.getSvgPoint(event);
-        this.addElement(elementType, svgPoint.x, svgPoint.y);
+    handleKeyUp(event) {
+        // Future: handle space key release for pan mode
     }
     
     // =========================================================================
     // HELPER METHODS
     // =========================================================================
     
-    /**
-     * Convert screen coordinates to SVG coordinates
-     */
     getSvgPoint(event) {
         const svg = this.template.querySelector('.canvas-svg');
         if (!svg) return { x: 0, y: 0 };
         
         const rect = svg.getBoundingClientRect();
-        
-        // Calculate the current viewBox dimensions (with zoom applied)
         const scaledWidth = this.baseViewBox.width / this.zoom;
         const scaledHeight = this.baseViewBox.height / this.zoom;
         const centerX = this.baseViewBox.x + this.baseViewBox.width / 2;
@@ -1140,7 +1257,6 @@ export default class ProcessCanvas extends LightningElement {
         const viewBoxX = centerX - scaledWidth / 2;
         const viewBoxY = centerY - scaledHeight / 2;
         
-        // Map screen coordinates to SVG coordinates
         const x = viewBoxX + ((event.clientX - rect.left) / rect.width) * scaledWidth;
         const y = viewBoxY + ((event.clientY - rect.top) / rect.height) * scaledHeight;
         
@@ -1177,6 +1293,14 @@ export default class ProcessCanvas extends LightningElement {
         return names[elementType] || elementType;
     }
     
+    cancelConnection() {
+        this.isConnecting = false;
+        this.connectionStartId = null;
+        this.connectionStartSide = null;
+        this.connectionStartPoint = null;
+        this.tempConnectionEnd = null;
+    }
+    
     // =========================================================================
     // SELECTION
     // =========================================================================
@@ -1186,10 +1310,18 @@ export default class ProcessCanvas extends LightningElement {
         this.selectedConnectionId = null;
         
         const element = this.elements.find(el => el.id === elementId);
+        const renderedEl = this.renderedElements.find(el => el.id === elementId);
+        
         this.dispatchEvent(new CustomEvent('selectionchange', {
             detail: { 
                 type: 'element',
-                element: element ? { ...element } : null
+                element: element ? { 
+                    ...element,
+                    cfcContribution: renderedEl?.cfcContribution || 0,
+                    cfcType: renderedEl?.cfcType || null,
+                    isHighRisk: renderedEl?.isHighRisk || false,
+                    complexityDescription: renderedEl?.complexityDescription || ''
+                } : null
             }
         }));
     }
@@ -1220,8 +1352,7 @@ export default class ProcessCanvas extends LightningElement {
     // CRUD OPERATIONS
     // =========================================================================
     
-    createConnection(sourceId, targetId, sourceSide = null, targetSide = null, type = 'SequenceFlow') {
-        // Check if connection already exists
+    createConnection(sourceId, targetId, sourceSide, targetSide, type = 'SequenceFlow') {
         const exists = this.connections.some(
             c => c.sourceId === sourceId && c.targetId === targetId
         );
@@ -1230,7 +1361,6 @@ export default class ProcessCanvas extends LightningElement {
             return null;
         }
         
-        // If sides not specified, calculate best sides based on positions
         if (!sourceSide || !targetSide) {
             const sourceEl = this.elements.find(el => el.id === sourceId);
             const targetEl = this.elements.find(el => el.id === targetId);
@@ -1257,52 +1387,11 @@ export default class ProcessCanvas extends LightningElement {
         this.selectConnection(connection.id);
         this.notifyCanvasChange();
         
-        console.log('Created connection:', connection);
         return connection.id;
-    }
-    
-    // Calculate best exit/entry sides based on element positions
-    calculateBestSides(sourceEl, targetEl) {
-        const sourceCenter = {
-            x: sourceEl.x + sourceEl.width / 2,
-            y: sourceEl.y + sourceEl.height / 2
-        };
-        const targetCenter = {
-            x: targetEl.x + targetEl.width / 2,
-            y: targetEl.y + targetEl.height / 2
-        };
-        
-        const dx = targetCenter.x - sourceCenter.x;
-        const dy = targetCenter.y - sourceCenter.y;
-        
-        let sourceSide, targetSide;
-        
-        if (Math.abs(dx) > Math.abs(dy)) {
-            // Horizontal dominant
-            if (dx > 0) {
-                sourceSide = 'right';
-                targetSide = 'left';
-            } else {
-                sourceSide = 'left';
-                targetSide = 'right';
-            }
-        } else {
-            // Vertical dominant
-            if (dy > 0) {
-                sourceSide = 'bottom';
-                targetSide = 'top';
-            } else {
-                sourceSide = 'top';
-                targetSide = 'bottom';
-            }
-        }
-        
-        return { sourceSide, targetSide };
     }
     
     deleteElement(elementId) {
         this.elements = this.elements.filter(el => el.id !== elementId);
-        // Also delete any connections to/from this element
         this.connections = this.connections.filter(
             c => c.sourceId !== elementId && c.targetId !== elementId
         );
@@ -1326,7 +1415,8 @@ export default class ProcessCanvas extends LightningElement {
             detail: {
                 elementCount: this.elements.length,
                 connectionCount: this.connections.length,
-                hasUnsavedChanges: true
+                hasUnsavedChanges: true,
+                score: this.calculateProcessScore()
             }
         }));
     }

@@ -1,15 +1,15 @@
 <!--
   @description: Main template for the Process Modeling Studio
   @author: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
-  @date: 2024-12-12
-  @version: 1.0.1
+  @date: 2024-12-14
+  @version: 1.1.0
   
   EXPLANATION:
   Layout structure for the process modeler with:
   - Toolbar at top
   - Palette on left
   - Canvas in center
-  - Properties panel on right
+  - Properties panel on right (now includes Process Quality Score)
   - New Process modal for creating processes
   
   CHANGELOG:
@@ -17,6 +17,7 @@
   ---------|------------|--------|------------------------------------------
   1.0.0   | 2024-12-12 | DvM    | Initial creation
   1.0.1   | 2024-12-12 | DvM    | Added new process modal support
+  1.1.0   | 2024-12-14 | DvM    | Added score-data binding to properties panel
 -->
 <template>
     <div class={containerClass}>
@@ -90,11 +91,12 @@
                     ></c-process-canvas>
                 </div>
                 
-                <!-- Right Panel: Properties -->
+                <!-- Right Panel: Properties (now includes score-data) -->
                 <div class="properties-wrapper">
                     <c-process-properties
                         selected-element={selectedElement}
                         selected-connection={selectedConnection}
+                        score-data={scoreData}
                         read-only={isReadOnly}
                         onpropertychange={handlePropertyChange}
                         ondeleteelement={handleDeleteElement}
@@ -116,12 +118,10 @@
                         <h2 class="slds-modal__title">Save New Process</h2>
                     </header>
                     <div class="slds-modal__content slds-p-around_medium">
-                        <p class="slds-m-bottom_medium">Enter a name to save your new process.</p>
                         <lightning-input
                             label="Process Name"
                             value={newProcessName}
                             onchange={handleNewProcessNameChange}
-                            placeholder="Enter process name..."
                             required
                             class="slds-m-bottom_medium"
                         ></lightning-input>
@@ -129,7 +129,6 @@
                             label="Description"
                             value={newProcessDescription}
                             onchange={handleNewProcessDescChange}
-                            placeholder="Enter process description (optional)..."
                             max-length="1000"
                         ></lightning-textarea>
                     </div>
@@ -137,9 +136,10 @@
                         <lightning-button
                             label="Cancel"
                             onclick={handleCancelNewProcess}
+                            class="slds-m-right_x-small"
                         ></lightning-button>
                         <lightning-button
-                            label="Save Process"
+                            label="Create Process"
                             variant="brand"
                             onclick={handleCreateProcess}
                         ></lightning-button>

@@ -1,27 +1,162 @@
 <!--
-  @description: Properties panel template for selected BPMN elements
+  @description: Properties panel template with Process Quality Score display
   @author: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
-  @date: 2024-12-12
-  @version: 1.0.0
+  @date: 2024-12-14
+  @version: 1.1.1
   
   EXPLANATION:
-  Template for the properties panel that displays different fields
-  based on the type of selected element or connection.
+  Template for the properties panel that displays:
+  - Element/connection properties for editing
+  - Process Quality Score with letter grade
+  - CFC breakdown by gateway type
+  - Dimension scores as progress bars
+  - Issues and recommendations
+  - Gateway-specific complexity info
   
   CHANGELOG:
   Version | Date       | Author | Description
   ---------|------------|--------|------------------------------------------
   1.0.0   | 2024-12-12 | DvM    | Initial creation
+  1.1.0   | 2024-12-14 | DvM    | Added Process Quality Score section
+  1.1.1   | 2024-12-14 | DvM    | Fixed LWC template issues:
+                                  - Removed inline style bindings (use CSS classes)
+                                  - Fixed disabled attribute literals
 -->
 <template>
     <div class="properties-container">
-        <!-- Header -->
+        <!-- ============================================ -->
+        <!-- HEADER -->
+        <!-- ============================================ -->
         <div class="properties-header">
             <lightning-icon icon-name={selectionIcon} size="small"></lightning-icon>
             <h3 class="properties-title">{selectionTitle}</h3>
         </div>
         
-        <!-- No Selection State -->
+        <!-- ============================================ -->
+        <!-- PROCESS QUALITY SCORE SECTION (Always visible) -->
+        <!-- ============================================ -->
+        <template if:true={hasScoreData}>
+            <div class="score-section">
+                <!-- Score Header with Grade -->
+                <div class="score-header" onclick={toggleScoreDetails}>
+                    <div class="score-header-left">
+                        <lightning-icon 
+                            icon-name={scoreDetailsIcon} 
+                            size="x-small"
+                            class="score-toggle-icon"
+                        ></lightning-icon>
+                        <span class="score-label">Process Score</span>
+                    </div>
+                    <div class="score-header-right">
+                        <span class="score-value">{scoreTotal}</span>
+                        <span class={scoreGradeClass}>{scoreGrade}</span>
+                    </div>
+                </div>
+                
+                <!-- Score Details (Collapsible) -->
+                <template if:true={showScoreDetails}>
+                    <div class="score-details">
+                        <!-- CFC Summary -->
+                        <div class="score-metric">
+                            <div class="metric-header">
+                                <span class="metric-label">Control-Flow Complexity</span>
+                                <span class={cfcThresholdClass}>{cfcThreshold}</span>
+                            </div>
+                            <div class="metric-value-large">{scoreCFC}</div>
+                            <div class="cfc-breakdown">
+                                <span class="cfc-item">XOR: {scoreCfcXOR}</span>
+                                <span class="cfc-item cfc-or">OR: {scoreCfcOR}</span>
+                                <span class="cfc-item">AND: {scoreCfcAND}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Element Count -->
+                        <div class="score-metric">
+                            <div class="metric-header">
+                                <span class="metric-label">Elements (NOAJS)</span>
+                                <span class={noajsThresholdClass}>{noajsThreshold}</span>
+                            </div>
+                            <div class="metric-value">{scoreNOAJS}</div>
+                            <div class="metric-sub">
+                                Activities: {scoreNOA} | Gateways: {scoreGatewayCount}
+                            </div>
+                        </div>
+                        
+                        <!-- Dimension Scores -->
+                        <div class="dimensions-section">
+                            <h4 class="dimensions-title">Dimension Scores</h4>
+                            
+                            <!-- Structural -->
+                            <div class="dimension-row">
+                                <span class="dimension-label">Structural</span>
+                                <div class="dimension-bar-container">
+                                    <div class={structuralBarClass}></div>
+                                </div>
+                                <span class="dimension-value">{dimensionStructural}</span>
+                            </div>
+                            
+                            <!-- Control Flow -->
+                            <div class="dimension-row">
+                                <span class="dimension-label">Control Flow</span>
+                                <div class="dimension-bar-container">
+                                    <div class={controlFlowBarClass}></div>
+                                </div>
+                                <span class="dimension-value">{dimensionControlFlow}</span>
+                            </div>
+                            
+                            <!-- Correctness -->
+                            <div class="dimension-row">
+                                <span class="dimension-label">Correctness</span>
+                                <div class="dimension-bar-container">
+                                    <div class={correctnessBarClass}></div>
+                                </div>
+                                <span class="dimension-value">{dimensionCorrectness}</span>
+                            </div>
+                            
+                            <!-- Naming -->
+                            <div class="dimension-row">
+                                <span class="dimension-label">Naming</span>
+                                <div class="dimension-bar-container">
+                                    <div class={namingBarClass}></div>
+                                </div>
+                                <span class="dimension-value">{dimensionNaming}</span>
+                            </div>
+                            
+                            <!-- Modularity -->
+                            <div class="dimension-row">
+                                <span class="dimension-label">Modularity</span>
+                                <div class="dimension-bar-container">
+                                    <div class={modularityBarClass}></div>
+                                </div>
+                                <span class="dimension-value">{dimensionModularity}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Issues/Warnings -->
+                        <template if:true={hasIssues}>
+                            <div class="issues-section">
+                                <h4 class="issues-title">Issues &amp; Recommendations</h4>
+                                <template for:each={scoreIssues} for:item="issue">
+                                    <div key={issue.key} class={issue.severityClass}>
+                                        <lightning-icon 
+                                            icon-name={issue.iconName}
+                                            variant={issue.iconVariant}
+                                            size="x-small"
+                                            class="issue-icon"
+                                        ></lightning-icon>
+                                        <span class="issue-message">{issue.message}</span>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </template>
+        
+        <!-- ============================================ -->
+        <!-- NO SELECTION STATE -->
+        <!-- ============================================ -->
         <template if:false={hasSelection}>
             <div class="no-selection">
                 <lightning-icon icon-name="utility:touch_action" size="large" class="no-selection-icon"></lightning-icon>
@@ -29,7 +164,9 @@
             </div>
         </template>
         
-        <!-- Element Properties -->
+        <!-- ============================================ -->
+        <!-- ELEMENT PROPERTIES -->
+        <!-- ============================================ -->
         <template if:true={isElementSelected}>
             <div class="properties-content">
                 <!-- General Section -->
@@ -54,7 +191,7 @@
                     ></lightning-textarea>
                 </div>
                 
-                <!-- Task Properties (only for task types) -->
+                <!-- Task-specific fields -->
                 <template if:true={showTaskFields}>
                     <div class="properties-section">
                         <h4 class="section-title">Task Details</h4>
@@ -64,119 +201,106 @@
                             value={elementAssignedRole}
                             onchange={handleAssignedRoleChange}
                             disabled={readOnly}
-                            placeholder="e.g., Manager, Approver"
                             class="property-field"
                         ></lightning-input>
                         
-                        <div class="field-row">
-                            <lightning-input
-                                type="number"
-                                label="Duration (hours)"
-                                value={elementDurationHours}
-                                onchange={handleDurationChange}
-                                disabled={readOnly}
-                                min="0"
-                                step="0.5"
-                                class="property-field half"
-                            ></lightning-input>
+                        <lightning-input
+                            type="number"
+                            label="Duration (hours)"
+                            value={elementDurationHours}
+                            onchange={handleDurationChange}
+                            disabled={readOnly}
+                            min="0"
+                            step="0.5"
+                            class="property-field"
+                        ></lightning-input>
+                        
+                        <lightning-input
+                            type="number"
+                            label="SLA (hours)"
+                            value={elementSlaHours}
+                            onchange={handleSlaChange}
+                            disabled={readOnly}
+                            min="0"
+                            step="0.5"
+                            class="property-field"
+                        ></lightning-input>
+                    </div>
+                </template>
+                
+                <!-- Gateway Complexity Info Box -->
+                <template if:true={showGatewayComplexity}>
+                    <div class="properties-section">
+                        <h4 class="section-title">Complexity Impact</h4>
+                        
+                        <div class="gateway-complexity-box">
+                            <div class="complexity-row">
+                                <span class="complexity-label">Gateway Type:</span>
+                                <span class="complexity-value">{selectedGatewayType}</span>
+                            </div>
                             
-                            <lightning-input
-                                type="number"
-                                label="SLA (hours)"
-                                value={elementSlaHours}
-                                onchange={handleSlaChange}
-                                disabled={readOnly}
-                                min="0"
-                                step="0.5"
-                                class="property-field half"
-                            ></lightning-input>
+                            <div class="complexity-row">
+                                <span class="complexity-label">CFC Contribution:</span>
+                                <span class="complexity-cfc-value">+{selectedGatewayCFC}</span>
+                            </div>
+                            
+                            <template if:true={selectedGatewayDescription}>
+                                <p class="complexity-description">{selectedGatewayDescription}</p>
+                            </template>
+                            
+                            <template if:true={isSelectedGatewayHighRisk}>
+                                <div class="high-risk-warning">
+                                    <lightning-icon icon-name="utility:warning" size="x-small" variant="warning"></lightning-icon>
+                                    <span>OR gateways add exponential complexity (7PMG G5)</span>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </template>
                 
-                <!-- Position & Size Section -->
+                <!-- Position Section -->
                 <div class="properties-section">
-                    <h4 class="section-title">Position & Size</h4>
-                    
-                    <div class="field-row">
+                    <h4 class="section-title">Position</h4>
+                    <div class="position-fields">
                         <lightning-input
                             type="number"
                             label="X"
                             value={elementPositionX}
-                            onchange={handlePositionXChange}
-                            disabled={readOnly}
-                            class="property-field half"
+                            disabled={positionDisabled}
+                            class="position-field"
                         ></lightning-input>
-                        
                         <lightning-input
                             type="number"
                             label="Y"
                             value={elementPositionY}
-                            onchange={handlePositionYChange}
-                            disabled={readOnly}
-                            class="property-field half"
-                        ></lightning-input>
-                    </div>
-                    
-                    <div class="field-row">
-                        <lightning-input
-                            type="number"
-                            label="Width"
-                            value={elementWidth}
-                            onchange={handleWidthChange}
-                            disabled={readOnly}
-                            min="20"
-                            class="property-field half"
-                        ></lightning-input>
-                        
-                        <lightning-input
-                            type="number"
-                            label="Height"
-                            value={elementHeight}
-                            onchange={handleHeightChange}
-                            disabled={readOnly}
-                            min="20"
-                            class="property-field half"
+                            disabled={positionDisabled}
+                            class="position-field"
                         ></lightning-input>
                     </div>
                 </div>
                 
-                <!-- Actions -->
+                <!-- Delete Button -->
                 <template if:false={readOnly}>
                     <div class="properties-actions">
                         <lightning-button
-                            label="Duplicate"
-                            icon-name="utility:copy"
-                            onclick={handleDuplicate}
-                            class="action-button"
-                        ></lightning-button>
-                        <lightning-button
-                            label="Delete"
+                            label="Delete Element"
                             icon-name="utility:delete"
                             variant="destructive"
                             onclick={handleDelete}
-                            class="action-button"
+                            class="action-button full-width"
                         ></lightning-button>
                     </div>
                 </template>
             </div>
         </template>
         
-        <!-- Connection Properties -->
+        <!-- ============================================ -->
+        <!-- CONNECTION PROPERTIES -->
+        <!-- ============================================ -->
         <template if:true={isConnectionSelected}>
             <div class="properties-content">
-                <!-- General Section -->
                 <div class="properties-section">
                     <h4 class="section-title">Connection</h4>
-                    
-                    <lightning-combobox
-                        label="Type"
-                        value={connectionType}
-                        options={connectionTypeOptions}
-                        onchange={handleConnectionTypeChange}
-                        disabled={readOnly}
-                        class="property-field"
-                    ></lightning-combobox>
                     
                     <lightning-input
                         label="Label"

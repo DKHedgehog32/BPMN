@@ -1,8 +1,8 @@
 /**
  * @description Main orchestrating component for the Process Modeling Studio
  * @author Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
- * @date 2024-12-12
- * @version 1.0.1
+ * @date 2024-12-14
+ * @version 1.1.0
  * 
  * EXPLANATION:
  * This is the main container component that orchestrates all child components:
@@ -18,6 +18,7 @@
  * - Publishing versions
  * - Auto-save functionality
  * - Communication between child components
+ * - Process Quality Score propagation to properties panel
  * 
  * DEPENDENCIES:
  * - ProcessCanvasController (Apex)
@@ -28,6 +29,10 @@
  * --------|------------|--------|------------------------------------------
  * 1.0.0   | 2024-12-12 | DvM    | Initial creation - main orchestration
  * 1.0.1   | 2024-12-12 | DvM    | Support creating new process without ID
+ * 1.1.0   | 2024-12-14 | DvM    | Added Process Quality Score integration
+ *                                 - Added scoreData tracked property
+ *                                 - Updated handleCanvasChange to extract score
+ *                                 - Calculate initial score on canvas load
  * 
  * SECURITY:
  * - All data operations via Apex with FLS enforcement
@@ -73,6 +78,7 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
     @track showNewProcessModal = false;
     @track newProcessName = '';
     @track newProcessDescription = '';
+    @track scoreData = null; // Process Quality Score data
     
     // Auto-save timer
     autoSaveTimer = null;
@@ -225,6 +231,22 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
         const canvas = this.template.querySelector('c-process-canvas');
         if (canvas && this.processData?.canvasJson) {
             canvas.setCanvasState(this.processData.canvasJson);
+            
+            // Calculate initial score after canvas is loaded
+            setTimeout(() => {
+                this.calculateInitialScore();
+            }, 100);
+        }
+    }
+    
+    /**
+     * @description Calculate initial process score after canvas loads
+     * This ensures the score panel shows data even before user makes changes
+     */
+    calculateInitialScore() {
+        const canvas = this.template.querySelector('c-process-canvas');
+        if (canvas && typeof canvas.calculateProcessScore === 'function') {
+            this.scoreData = canvas.calculateProcessScore();
         }
     }
     
@@ -443,8 +465,17 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
     // CANVAS EVENT HANDLERS
     // =========================================================================
     
+    /**
+     * @description Handle canvas change events
+     * Updates dirty flag and extracts process quality score
+     */
     handleCanvasChange(event) {
         this.hasUnsavedChanges = true;
+        
+        // Extract score data from canvas change event
+        if (event.detail?.score) {
+            this.scoreData = event.detail.score;
+        }
     }
     
     handleSelectionChange(event) {

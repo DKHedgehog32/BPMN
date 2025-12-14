@@ -1,8 +1,8 @@
 /**
  * @description Properties panel for editing selected BPMN element or connection
  * @author Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
- * @date 2024-12-12
- * @version 1.0.0
+ * @date 2024-12-14
+ * @version 1.1.1
  * 
  * EXPLANATION:
  * This component displays and allows editing of properties for the currently
@@ -10,8 +10,14 @@
  * 
  * - All elements: Name, Description
  * - Tasks: Assigned Role, Duration, SLA
- * - Gateways: Default flow selection
+ * - Gateways: Default flow selection, Complexity Info
  * - Connections: Label, Condition, Is Default
+ * 
+ * NEW: Process Quality Score display with:
+ * - Overall score (0-100) with letter grade (A-F)
+ * - CFC breakdown by gateway type
+ * - Dimension scores as progress bars
+ * - Issues and recommendations
  * 
  * Changes are communicated back to the canvas via custom events.
  * 
@@ -22,11 +28,17 @@
  * Version | Date       | Author | Description
  * --------|------------|--------|------------------------------------------
  * 1.0.0   | 2024-12-12 | DvM    | Initial creation - properties panel
+ * 1.1.0   | 2024-12-14 | DvM    | Added Process Quality Score section
+ * 1.1.1   | 2024-12-14 | DvM    | Fixed LWC issues:
+ *                                 - Use CSS classes for progress bar widths
+ *                                 - Added positionDisabled getter
  * 
  * USAGE:
  * <c-process-properties
  *     selected-element={selectedElement}
  *     selected-connection={selectedConnection}
+ *     score-data={scoreData}
+ *     read-only={isReadOnly}
  *     onpropertychange={handlePropertyChange}>
  * </c-process-properties>
  */
@@ -56,6 +68,14 @@ export default class ProcessProperties extends LightningElement {
         this._selectedElement = null;
     }
     
+    @api 
+    get scoreData() {
+        return this._scoreData;
+    }
+    set scoreData(value) {
+        this._scoreData = value ? { ...value } : null;
+    }
+    
     @api readOnly = false;
     
     // =========================================================================
@@ -64,8 +84,10 @@ export default class ProcessProperties extends LightningElement {
     
     @track _selectedElement = null;
     @track _selectedConnection = null;
+    @track _scoreData = null;
+    @track showScoreDetails = false;
     
-    // Element type options for display
+    // Element type display labels
     elementTypeLabels = {
         StartEvent: 'Start Event',
         EndEvent: 'End Event',
@@ -91,18 +113,8 @@ export default class ProcessProperties extends LightningElement {
         Group: 'Group'
     };
     
-    // Connection type options
-    connectionTypeOptions = [
-        { label: 'Sequence Flow', value: 'SequenceFlow' },
-        { label: 'Conditional Flow', value: 'ConditionalFlow' },
-        { label: 'Default Flow', value: 'DefaultFlow' },
-        { label: 'Message Flow', value: 'MessageFlow' },
-        { label: 'Association', value: 'Association' },
-        { label: 'Data Association', value: 'DataAssociation' }
-    ];
-    
     // =========================================================================
-    // GETTERS - Display Logic
+    // GETTERS - SELECTION STATE
     // =========================================================================
     
     get hasSelection() {
@@ -124,7 +136,7 @@ export default class ProcessProperties extends LightningElement {
         if (this._selectedConnection) {
             return 'Connection';
         }
-        return 'No Selection';
+        return 'Properties';
     }
     
     get selectionIcon() {
@@ -143,7 +155,15 @@ export default class ProcessProperties extends LightningElement {
         return 'utility:info';
     }
     
-    // Show task-specific fields (role, duration, SLA)
+    // Position fields are always disabled (display only)
+    get positionDisabled() {
+        return true;
+    }
+    
+    // =========================================================================
+    // GETTERS - ELEMENT FIELD VISIBILITY
+    // =========================================================================
+    
     get showTaskFields() {
         if (!this._selectedElement) return false;
         const taskTypes = ['UserTask', 'ServiceTask', 'ScriptTask', 'ManualTask', 
@@ -151,13 +171,11 @@ export default class ProcessProperties extends LightningElement {
         return taskTypes.includes(this._selectedElement.type);
     }
     
-    // Show gateway-specific fields
     get showGatewayFields() {
         if (!this._selectedElement) return false;
         return this._selectedElement.type.includes('Gateway');
     }
     
-    // Show connection condition field (only for conditional flows from gateways)
     get showConditionField() {
         if (!this._selectedConnection) return false;
         return this._selectedConnection.type === 'ConditionalFlow' || 
@@ -165,7 +183,7 @@ export default class ProcessProperties extends LightningElement {
     }
     
     // =========================================================================
-    // GETTERS - Element Values
+    // GETTERS - ELEMENT VALUES
     // =========================================================================
     
     get elementName() {
@@ -196,24 +214,12 @@ export default class ProcessProperties extends LightningElement {
         return this._selectedElement?.y ? Math.round(this._selectedElement.y) : '';
     }
     
-    get elementWidth() {
-        return this._selectedElement?.width || '';
-    }
-    
-    get elementHeight() {
-        return this._selectedElement?.height || '';
-    }
-    
     // =========================================================================
-    // GETTERS - Connection Values
+    // GETTERS - CONNECTION VALUES
     // =========================================================================
     
     get connectionLabel() {
         return this._selectedConnection?.label || '';
-    }
-    
-    get connectionType() {
-        return this._selectedConnection?.type || 'SequenceFlow';
     }
     
     get connectionCondition() {
@@ -225,140 +231,271 @@ export default class ProcessProperties extends LightningElement {
     }
     
     // =========================================================================
-    // EVENT HANDLERS - Element Properties
+    // GETTERS - SCORE DATA
+    // =========================================================================
+    
+    get hasScoreData() {
+        return !!this._scoreData;
+    }
+    
+    get scoreTotal() {
+        return this._scoreData?.total || 0;
+    }
+    
+    get scoreGrade() {
+        return this._scoreData?.grade || '-';
+    }
+    
+    get scoreGradeColor() {
+        return this._scoreData?.gradeColor || '#718096';
+    }
+    
+    get scoreGradeClass() {
+        const grade = this._scoreData?.grade || 'F';
+        return `grade-badge grade-${grade.toLowerCase()}`;
+    }
+    
+    get scoreCFC() {
+        return this._scoreData?.cfc || 0;
+    }
+    
+    get scoreCfcXOR() {
+        return this._scoreData?.cfcBreakdown?.xor || 0;
+    }
+    
+    get scoreCfcOR() {
+        return this._scoreData?.cfcBreakdown?.or || 0;
+    }
+    
+    get scoreCfcAND() {
+        return this._scoreData?.cfcBreakdown?.and || 0;
+    }
+    
+    get scoreNOAJS() {
+        return this._scoreData?.noajs || 0;
+    }
+    
+    get scoreNOA() {
+        return this._scoreData?.noa || 0;
+    }
+    
+    get scoreGatewayCount() {
+        return this._scoreData?.gatewayCount || 0;
+    }
+    
+    // Threshold indicators
+    get cfcThreshold() {
+        return this._scoreData?.thresholds?.cfc || 'low';
+    }
+    
+    get noajsThreshold() {
+        return this._scoreData?.thresholds?.noajs || 'low';
+    }
+    
+    get cfcThresholdClass() {
+        return `threshold-badge threshold-${this.cfcThreshold}`;
+    }
+    
+    get noajsThresholdClass() {
+        return `threshold-badge threshold-${this.noajsThreshold}`;
+    }
+    
+    // Dimension scores
+    get dimensionStructural() {
+        return this._scoreData?.dimensions?.structural || 0;
+    }
+    
+    get dimensionControlFlow() {
+        return this._scoreData?.dimensions?.controlFlow || 0;
+    }
+    
+    get dimensionCorrectness() {
+        return this._scoreData?.dimensions?.correctness || 0;
+    }
+    
+    get dimensionNaming() {
+        return this._scoreData?.dimensions?.naming || 0;
+    }
+    
+    get dimensionModularity() {
+        return this._scoreData?.dimensions?.modularity || 0;
+    }
+    
+    // =========================================================================
+    // GETTERS - DIMENSION BAR CLASSES (using CSS width classes)
+    // LWC doesn't allow inline style bindings, so we use predefined CSS classes
+    // =========================================================================
+    
+    /**
+     * @description Get CSS class for progress bar width
+     * Uses predefined CSS classes: bar-w-0, bar-w-10, bar-w-20, ... bar-w-100
+     */
+    getBarWidthClass(value) {
+        // Round to nearest 5%
+        const rounded = Math.round(value / 5) * 5;
+        const clamped = Math.max(0, Math.min(100, rounded));
+        return `dimension-bar bar-w-${clamped}`;
+    }
+    
+    get structuralBarClass() {
+        return this.getBarWidthClass(this.dimensionStructural);
+    }
+    
+    get controlFlowBarClass() {
+        return this.getBarWidthClass(this.dimensionControlFlow);
+    }
+    
+    get correctnessBarClass() {
+        return this.getBarWidthClass(this.dimensionCorrectness);
+    }
+    
+    get namingBarClass() {
+        return this.getBarWidthClass(this.dimensionNaming);
+    }
+    
+    get modularityBarClass() {
+        return this.getBarWidthClass(this.dimensionModularity);
+    }
+    
+    // Issues
+    get hasIssues() {
+        return this._scoreData?.issues?.length > 0;
+    }
+    
+    get scoreIssues() {
+        if (!this._scoreData?.issues) return [];
+        return this._scoreData.issues.map((issue, index) => ({
+            ...issue,
+            key: `issue-${index}`,
+            iconName: issue.type === 'error' ? 'utility:error' : 'utility:warning',
+            iconVariant: issue.type === 'error' ? 'error' : 'warning',
+            severityClass: `issue-item issue-${issue.severity}`
+        }));
+    }
+    
+    // =========================================================================
+    // GETTERS - GATEWAY COMPLEXITY INFO (when gateway is selected)
+    // =========================================================================
+    
+    get showGatewayComplexity() {
+        if (!this._selectedElement) return false;
+        return this._selectedElement.type.includes('Gateway');
+    }
+    
+    get selectedGatewayType() {
+        if (!this._selectedElement) return '';
+        const typeMap = {
+            'ExclusiveGateway': 'XOR (Exclusive)',
+            'ParallelGateway': 'AND (Parallel)',
+            'InclusiveGateway': 'OR (Inclusive)',
+            'EventBasedGateway': 'Event-Based'
+        };
+        return typeMap[this._selectedElement.type] || 'Gateway';
+    }
+    
+    get selectedGatewayCFC() {
+        if (!this._selectedElement?.cfcContribution) return 0;
+        return this._selectedElement.cfcContribution;
+    }
+    
+    get selectedGatewayDescription() {
+        if (!this._selectedElement?.complexityDescription) return '';
+        return this._selectedElement.complexityDescription;
+    }
+    
+    get isSelectedGatewayHighRisk() {
+        return this._selectedElement?.isHighRisk || false;
+    }
+    
+    // =========================================================================
+    // EVENT HANDLERS - ELEMENT PROPERTIES
     // =========================================================================
     
     handleNameChange(event) {
-        this.updateElementProperty('name', event.target.value);
+        this.dispatchPropertyChange('name', event.target.value);
     }
     
     handleDescriptionChange(event) {
-        this.updateElementProperty('description', event.target.value);
+        this.dispatchPropertyChange('description', event.target.value);
     }
     
     handleAssignedRoleChange(event) {
-        this.updateElementProperty('assignedRole', event.target.value);
+        this.dispatchPropertyChange('assignedRole', event.target.value);
     }
     
     handleDurationChange(event) {
         const value = event.target.value ? parseFloat(event.target.value) : null;
-        this.updateElementProperty('durationHours', value);
+        this.dispatchPropertyChange('durationHours', value);
     }
     
     handleSlaChange(event) {
         const value = event.target.value ? parseFloat(event.target.value) : null;
-        this.updateElementProperty('slaHours', value);
-    }
-    
-    handlePositionXChange(event) {
-        const value = event.target.value ? parseFloat(event.target.value) : 0;
-        this.updateElementProperty('x', value);
-    }
-    
-    handlePositionYChange(event) {
-        const value = event.target.value ? parseFloat(event.target.value) : 0;
-        this.updateElementProperty('y', value);
-    }
-    
-    handleWidthChange(event) {
-        const value = event.target.value ? parseFloat(event.target.value) : 100;
-        this.updateElementProperty('width', value);
-    }
-    
-    handleHeightChange(event) {
-        const value = event.target.value ? parseFloat(event.target.value) : 80;
-        this.updateElementProperty('height', value);
+        this.dispatchPropertyChange('slaHours', value);
     }
     
     // =========================================================================
-    // EVENT HANDLERS - Connection Properties
+    // EVENT HANDLERS - CONNECTION PROPERTIES
     // =========================================================================
     
     handleConnectionLabelChange(event) {
-        this.updateConnectionProperty('label', event.target.value);
-    }
-    
-    handleConnectionTypeChange(event) {
-        this.updateConnectionProperty('type', event.detail.value);
+        this.dispatchConnectionChange('label', event.target.value);
     }
     
     handleConditionChange(event) {
-        this.updateConnectionProperty('condition', event.target.value);
+        this.dispatchConnectionChange('condition', event.target.value);
     }
     
     handleIsDefaultChange(event) {
-        this.updateConnectionProperty('isDefault', event.target.checked);
+        this.dispatchConnectionChange('isDefault', event.target.checked);
     }
     
     // =========================================================================
-    // PROPERTY UPDATE HELPERS
+    // EVENT HANDLERS - SCORE SECTION
     // =========================================================================
     
-    updateElementProperty(propertyName, value) {
-        if (!this._selectedElement || this.readOnly) return;
-        
-        // Update local state
-        this._selectedElement = {
-            ...this._selectedElement,
-            [propertyName]: value
-        };
-        
-        // Dispatch event to canvas
-        this.dispatchEvent(new CustomEvent('propertychange', {
-            detail: {
-                type: 'element',
-                elementId: this._selectedElement.id,
-                property: propertyName,
-                value: value,
-                element: { ...this._selectedElement }
-            }
-        }));
+    toggleScoreDetails() {
+        this.showScoreDetails = !this.showScoreDetails;
     }
     
-    updateConnectionProperty(propertyName, value) {
-        if (!this._selectedConnection || this.readOnly) return;
-        
-        // Update local state
-        this._selectedConnection = {
-            ...this._selectedConnection,
-            [propertyName]: value
-        };
-        
-        // Dispatch event to canvas
-        this.dispatchEvent(new CustomEvent('propertychange', {
-            detail: {
-                type: 'connection',
-                connectionId: this._selectedConnection.id,
-                property: propertyName,
-                value: value,
-                connection: { ...this._selectedConnection }
-            }
-        }));
+    get scoreDetailsIcon() {
+        return this.showScoreDetails ? 'utility:chevrondown' : 'utility:chevronright';
     }
     
     // =========================================================================
-    // ACTIONS
+    // EVENT HANDLERS - DELETE ACTIONS
     // =========================================================================
     
     handleDelete() {
-        if (this.readOnly) return;
-        
         if (this._selectedElement) {
-            this.dispatchEvent(new CustomEvent('deleteelement', {
-                detail: { elementId: this._selectedElement.id }
-            }));
+            this.dispatchEvent(new CustomEvent('deleteelement'));
         } else if (this._selectedConnection) {
-            this.dispatchEvent(new CustomEvent('deleteconnection', {
-                detail: { connectionId: this._selectedConnection.id }
-            }));
+            this.dispatchEvent(new CustomEvent('deleteconnection'));
         }
     }
     
-    handleDuplicate() {
-        if (this.readOnly || !this._selectedElement) return;
-        
-        this.dispatchEvent(new CustomEvent('duplicateelement', {
-            detail: { elementId: this._selectedElement.id }
+    // =========================================================================
+    // HELPER METHODS
+    // =========================================================================
+    
+    dispatchPropertyChange(property, value) {
+        this.dispatchEvent(new CustomEvent('propertychange', {
+            detail: {
+                type: 'element',
+                elementId: this._selectedElement?.id,
+                property,
+                value
+            }
+        }));
+    }
+    
+    dispatchConnectionChange(property, value) {
+        this.dispatchEvent(new CustomEvent('propertychange', {
+            detail: {
+                type: 'connection',
+                connectionId: this._selectedConnection?.id,
+                property,
+                value
+            }
         }));
     }
 }
