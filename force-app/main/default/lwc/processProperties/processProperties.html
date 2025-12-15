@@ -188,10 +188,23 @@
                                 </template>
                             </div>
                         </template>
+                        
+                        <!-- View All Suggestions Button -->
+                        <div class="suggestions-button-container">
+                            <button class="suggestions-button" onclick={handleOpenSuggestions}>
+                                <lightning-icon icon-name="utility:magicwand" size="x-small"></lightning-icon>
+                                <span>View Improvement Suggestions</span>
+                                <lightning-icon icon-name="utility:chevronright" size="xx-small"></lightning-icon>
+                            </button>
+                        </div>
                     </div>
                 </template>
             </div>
         </template>
+        
+        <!-- ============================================ -->
+        <!-- SUGGESTIONS - Dispatches event to parent for modal -->
+        <!-- ============================================ -->
         
         <!-- ============================================ -->
         <!-- NO SELECTION STATE -->

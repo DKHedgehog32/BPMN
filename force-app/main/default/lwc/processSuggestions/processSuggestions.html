@@ -1,0 +1,176 @@
+<!--
+  @description: Process Improvement Suggestions template
+  @author: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+  @date: 2024-12-15
+  @version: 1.2.0
+  
+  EXPLANATION:
+  Displays actionable suggestions for improving process quality.
+  Groups suggestions by priority with expandable sections.
+  Includes detailed view with specific actions to take.
+  
+  CHANGELOG:
+  Version | Date       | Author | Description
+  ---------|------------|--------|------------------------------------------
+  1.0.0   | 2024-12-15 | DvM    | Initial creation
+  1.1.0   | 2024-12-15 | DvM    | Made more compact, added close button
+  1.2.0   | 2024-12-15 | DvM    | Removed header (modal provides it), added summary bar
+-->
+<template>
+    <div class="suggestions-container">
+        <!-- Summary Bar -->
+        <template if:true={hasSuggestions}>
+            <div class="suggestions-summary">
+                <span class="summary-text">{totalSuggestions} suggestions</span>
+                <span class="summary-potential">Potential: +{estimatedScoreImprovement} pts → {potentialScore} ({potentialGrade})</span>
+            </div>
+            
+            <!-- Priority Badges -->
+            <div class="priority-badges">
+                <template if:true={criticalCount}>
+                    <span class="priority-badge badge-critical">{criticalCount} Critical</span>
+                </template>
+                <template if:true={highCount}>
+                    <span class="priority-badge badge-high">{highCount} High</span>
+                </template>
+                <template if:true={mediumCount}>
+                    <span class="priority-badge badge-medium">{mediumCount} Medium</span>
+                </template>
+                <template if:true={lowCount}>
+                    <span class="priority-badge badge-low">{lowCount} Tips</span>
+                </template>
+            </div>
+        </template>
+        
+        <!-- Suggestions List -->
+        <div class="suggestions-content">
+            <template if:true={hasSuggestions}>
+                <template for:each={groupedSuggestions} for:item="group">
+                    <div key={group.key} class="suggestion-group">
+                        <!-- Group Header (Collapsible) -->
+                        <div class={group.headerClass} 
+                             data-priority={group.priority}
+                             onclick={handleGroupToggle}>
+                            <div class="group-header-left">
+                                <lightning-icon 
+                                    icon-name={group.expandIcon} 
+                                    size="xx-small"
+                                    class="expand-icon">
+                                </lightning-icon>
+                                <lightning-icon 
+                                    icon-name={group.icon} 
+                                    size="x-small"
+                                    variant={group.variant}
+                                    class="group-icon">
+                                </lightning-icon>
+                                <span class="group-label">{group.label}</span>
+                            </div>
+                            <span class="group-count">{group.count}</span>
+                        </div>
+                        
+                        <!-- Group Items -->
+                        <template if:true={group.isExpanded}>
+                            <div class="suggestion-items">
+                                <template for:each={group.items} for:item="item">
+                                    <div key={item.key} 
+                                         class="suggestion-item"
+                                         data-key={item.key}
+                                         onclick={handleSuggestionClick}>
+                                        <div class="item-header">
+                                            <span class={item.categoryClass}>{item.category}</span>
+                                            <span class="item-impact">+{item.scoreImpact} pts</span>
+                                        </div>
+                                        <div class="item-title">{item.title}</div>
+                                        <div class="item-description">{item.description}</div>
+                                        <div class="item-guideline">{item.guideline}</div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </template>
+            
+            <!-- No Suggestions State -->
+            <template if:false={hasSuggestions}>
+                <div class="no-suggestions">
+                    <lightning-icon 
+                        icon-name="utility:check" 
+                        size="large"
+                        class="no-suggestions-icon">
+                    </lightning-icon>
+                    <p class="no-suggestions-text">
+                        Great job! No improvement suggestions at this time.
+                    </p>
+                </div>
+            </template>
+        </div>
+        
+        <!-- Selected Suggestion Detail Modal -->
+        <template if:true={selectedSuggestion}>
+            <section role="dialog" tabindex="-1" aria-modal="true" class="suggestion-modal">
+                <div class="modal-container">
+                    <header class="modal-header">
+                        <div class="modal-header-content">
+                            <span class={selectedSuggestion.categoryClass}>{selectedSuggestion.category}</span>
+                            <h2 class="modal-title">{selectedSuggestion.title}</h2>
+                        </div>
+                        <button class="modal-close" onclick={handleCloseSuggestionDetail}>
+                            <lightning-icon icon-name="utility:close" size="small"></lightning-icon>
+                        </button>
+                    </header>
+                    
+                    <div class="modal-body">
+                        <!-- Problem Description -->
+                        <div class="modal-section">
+                            <h4 class="section-label">Problem</h4>
+                            <p class="section-content">{selectedSuggestion.description}</p>
+                        </div>
+                        
+                        <!-- Recommendation -->
+                        <div class="modal-section">
+                            <h4 class="section-label">Recommendation</h4>
+                            <p class="section-content recommendation">{selectedSuggestion.recommendation}</p>
+                        </div>
+                        
+                        <!-- Actions -->
+                        <div class="modal-section">
+                            <h4 class="section-label">Actions to Take</h4>
+                            <ul class="action-list">
+                                <template for:each={selectedSuggestion.actions} for:item="action">
+                                    <li key={action} class="action-item">
+                                        <lightning-icon icon-name="utility:check" size="xx-small" class="action-check"></lightning-icon>
+                                        {action}
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+                        
+                        <!-- Examples (if available) -->
+                        <template if:true={selectedSuggestion.examples}>
+                            <div class="modal-section">
+                                <h4 class="section-label">Examples</h4>
+                                <div class="examples-list">
+                                    <template for:each={selectedSuggestion.examples} for:item="example">
+                                        <div key={example.bad} class="example-row">
+                                            <span class="example-bad">{example.bad}</span>
+                                            <lightning-icon icon-name="utility:arrowdown" size="xx-small"></lightning-icon>
+                                            <span class="example-good">{example.good}</span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                        
+                        <!-- Impact & Guideline -->
+                        <div class="modal-footer-info">
+                            <span class="impact-badge">+{selectedSuggestion.scoreImpact} points potential</span>
+                            <span class="guideline-badge">{selectedSuggestion.guideline}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-backdrop" onclick={handleCloseSuggestionDetail}></div>
+            </section>
+        </template>
+    </div>
+</template>

@@ -365,6 +365,48 @@
 }
 
 /* =========================================================================
+   LAYOUT OPTIONS
+   ========================================================================= */
+
+.layout-options-card {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.layout-option {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.layout-option .layout-checkbox {
+    margin-bottom: 4px;
+}
+
+.layout-option-description {
+    font-size: 12px;
+    color: #706E6B;
+    margin: 0;
+    padding-left: 24px;
+}
+
+/* Layout section in import modal */
+.import-layout-section {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #E2E8F0;
+}
+
+.import-layout-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3E3E3C;
+    margin: 0 0 12px 0;
+}
+
+/* =========================================================================
    ORG IMPORT BACK BAR
    ========================================================================= */
 
@@ -518,4 +560,21 @@
 
 .org-import-back-bar .back-button {
     margin-bottom: 0;
+}
+
+/* =========================================================================
+   SUGGESTIONS MODAL
+   ========================================================================= */
+
+.suggestions-modal-container {
+    max-width: 520px;
+    max-height: 85vh;
+    height: auto !important;
+    min-height: auto !important;
+}
+
+.suggestions-modal-container .slds-modal__content {
+    max-height: none;
+    height: auto !important;
+    min-height: auto !important;
 }

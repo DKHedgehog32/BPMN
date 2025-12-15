@@ -105,6 +105,7 @@
                         onpropertychange={handlePropertyChange}
                         ondeleteelement={handleDeleteElement}
                         ondeleteconnection={handleDeleteConnection}
+                        onopensuggestions={handleOpenSuggestions}
                     ></c-process-properties>
                 </div>
             </div>
@@ -198,6 +199,23 @@
                                     </div>
                                     <div class="import-source-arrow">
                                         <lightning-icon icon-name="utility:chevronright" size="small"></lightning-icon>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Layout Options -->
+                            <div class="import-layout-section">
+                                <h4 class="import-layout-title">Layout Options</h4>
+                                <div class="layout-options-card">
+                                    <div class="layout-option">
+                                        <lightning-input 
+                                            type="checkbox" 
+                                            label="Organize into Swimlanes"
+                                            checked={organizeIntoLanesOnImport}
+                                            onchange={handleOrganizeLanesToggle}
+                                            class="layout-checkbox"
+                                        ></lightning-input>
+                                        <p class="layout-option-description">Group elements by type: User Interaction, Process Logic, Data Operations</p>
                                     </div>
                                 </div>
                             </div>
@@ -322,5 +340,33 @@
                 <div class="slds-backdrop slds-backdrop_open"></div>
             </template>
         </template>
+        
     </div>
+        
+        <!-- ============================================ -->
+        <!-- SUGGESTIONS MODAL -->
+        <!-- ============================================ -->
+        <template if:true={showSuggestionsModal}>
+            <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container suggestions-modal-container">
+                    <!-- Dark blue header matching Import modal -->
+                    <div class="import-modal-header">
+                        <button class="import-modal-close" onclick={handleCloseSuggestionsModal}>
+                            <lightning-icon icon-name="utility:close" size="small"></lightning-icon>
+                        </button>
+                        <div class="import-modal-title">
+                            <lightning-icon icon-name="utility:magicwand" size="small"></lightning-icon>
+                            <h2>Improvement Suggestions</h2>
+                        </div>
+                    </div>
+                    <div class="slds-modal__content slds-p-around_none">
+                        <c-process-suggestions
+                            score-data={scoreData}
+                            onsuggestionselect={handleSuggestionSelect}
+                        ></c-process-suggestions>
+                    </div>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
 </template>

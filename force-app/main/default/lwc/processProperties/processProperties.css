@@ -2,7 +2,7 @@
  * @description Styling for the BPMN Properties Panel with Process Quality Score
  * @author Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
  * @date 2024-12-14
- * @version 1.1.1
+ * @version 1.2.0
  * 
  * CHANGELOG:
  * Version | Date       | Author | Description
@@ -11,6 +11,7 @@
  * 1.1.0   | 2024-12-14 | DvM    | Added score section styles
  * 1.1.1   | 2024-12-14 | DvM    | Added predefined width classes for progress bars
  *                                 (LWC doesn't allow inline style bindings)
+ * 1.2.0   | 2024-12-15 | DvM    | Added process actions section with swimlane button
  */
 
 /* =========================================================================
@@ -112,6 +113,9 @@
 .score-section {
     border-bottom: 1px solid #DFE1E6;
     background-color: #F8FAFC;
+    display: flex;
+    flex-direction: column;
+    max-height: 50vh; /* Limit height to allow scrolling */
     flex-shrink: 0;
 }
 
@@ -122,6 +126,7 @@
     padding: 12px 16px;
     cursor: pointer;
     transition: background-color 0.15s ease;
+    flex-shrink: 0;
 }
 
 .score-header:hover {
@@ -175,9 +180,12 @@
 .grade-d { background-color: #F97316; }
 .grade-f { background-color: #DC2626; }
 
-/* Score Details */
+/* Score Details - Scrollable when expanded */
 .score-details {
     padding: 0 16px 16px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
 }
 
 /* Score Metric */
@@ -398,6 +406,44 @@
     font-size: 11px;
     color: #374151;
     line-height: 1.4;
+}
+
+/* =========================================================================
+   SUGGESTIONS BUTTON
+   ========================================================================= */
+
+.suggestions-button-container {
+    padding-top: 12px;
+    margin-top: 12px;
+    border-top: 1px solid #E2E8F0;
+}
+
+.suggestions-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #1E3A5F 0%, #2D4A6F 100%);
+    border: none;
+    border-radius: 8px;
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    --sds-c-icon-color-foreground-default: #FFFFFF;
+}
+
+.suggestions-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(30, 58, 95, 0.3);
+}
+
+.suggestions-button span {
+    flex: 1;
+    text-align: left;
 }
 
 /* =========================================================================

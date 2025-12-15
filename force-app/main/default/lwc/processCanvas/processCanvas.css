@@ -47,6 +47,8 @@
     width: 100%;
     height: 100%;
     cursor: default;
+    position: relative;
+    z-index: 1;
 }
 
 .canvas-background {
@@ -399,4 +401,86 @@
     .legend-label {
         font-size: 11px;
     }
+    
+    .element-legend {
+        padding: 6px 10px;
+    }
+    
+    .element-legend span {
+        font-size: 10px;
+    }
+}
+
+/* =========================================================================
+   ELEMENT TYPE LEGEND (top bar)
+   ========================================================================= */
+
+.element-legend {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 8px 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    backdrop-filter: blur(4px);
+}
+
+.legend-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+}
+
+.legend-item-inline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-item-inline svg {
+    flex-shrink: 0;
+}
+
+.legend-item-inline span {
+    font-family: 'Salesforce Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 11px;
+    color: #4A5568;
+    white-space: nowrap;
+}
+
+/* =========================================================================
+   LOOP CONTAINER STYLES
+   ========================================================================= */
+
+.loop-container-label {
+    font-family: 'Salesforce Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    fill: #4338CA;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.loop-marker {
+    pointer-events: none;
+}
+
+/* Loop indicator - striped border on elements in a loop */
+.loop-indicator {
+    pointer-events: none;
+    animation: loop-dash 1s linear infinite;
+}
+
+@keyframes loop-dash {
+    to {
+        stroke-dashoffset: -24;
+    }
+}
+
+/* Elements inside a loop get a subtle glow */
+.element-in-loop {
+    filter: drop-shadow(0 0 3px rgba(139, 92, 246, 0.4));
 }

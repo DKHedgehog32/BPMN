@@ -95,6 +95,7 @@ export default class ProcessProperties extends LightningElement {
     @track _scoreData = null;
     @track _importedFlowInfo = null;
     @track showScoreDetails = false;
+    @track showSuggestionsModal = false;
     
     // Element type display labels
     elementTypeLabels = {
@@ -895,6 +896,28 @@ export default class ProcessProperties extends LightningElement {
     
     get scoreDetailsIcon() {
         return this.showScoreDetails ? 'utility:chevrondown' : 'utility:chevronright';
+    }
+    
+    // =========================================================================
+    // EVENT HANDLERS - SUGGESTIONS MODAL
+    // =========================================================================
+    
+    handleOpenSuggestions() {
+        this.dispatchEvent(new CustomEvent('opensuggestions'));
+    }
+    
+    handleCloseSuggestions() {
+        this.showSuggestionsModal = false;
+    }
+    
+    handleSuggestionSelect(event) {
+        // Dispatch event to highlight related elements on canvas
+        const { suggestion, relatedElements } = event.detail;
+        if (relatedElements && relatedElements.length > 0) {
+            this.dispatchEvent(new CustomEvent('highlightelements', {
+                detail: { elementIds: relatedElements }
+            }));
+        }
     }
     
     // =========================================================================

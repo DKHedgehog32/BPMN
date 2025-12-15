@@ -81,6 +81,7 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
     @track scoreData = null; // Process Quality Score data
     @track showImportModal = false; // Import modal visibility
     @track importedFlowInfo = null; // Imported Salesforce Flow metadata
+    @track showSuggestionsModal = false; // Suggestions modal visibility
     
     // Import source selection state
     @track importSource = null; // 'xml' or 'org'
@@ -91,6 +92,7 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
     @track xmlFlowPreview = null; // Parsed flow preview data
     @track xmlFlowData = null; // Full parsed flow data for import
     @track isDraggingXml = false;
+    @track organizeIntoLanesOnImport = false; // Layout option: organize into swimlanes
     
     // Auto-save timer
     autoSaveTimer = null;
@@ -684,6 +686,35 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
         this.importSource = null; // Go back to source selection
     }
     
+    // =========================================================================
+    // SUGGESTIONS MODAL HANDLERS
+    // =========================================================================
+    
+    /**
+     * @description Handle open suggestions event from properties panel
+     */
+    handleOpenSuggestions() {
+        this.showSuggestionsModal = true;
+    }
+    
+    /**
+     * @description Close suggestions modal
+     */
+    handleCloseSuggestionsModal() {
+        this.showSuggestionsModal = false;
+    }
+    
+    /**
+     * @description Handle suggestion selection (could highlight elements)
+     */
+    handleSuggestionSelect(event) {
+        const { relatedElements } = event.detail;
+        if (relatedElements && relatedElements.length > 0) {
+            // Could highlight elements on canvas
+            console.log('Highlight elements:', relatedElements);
+        }
+    }
+    
     /**
      * @description Reset XML upload state
      */
@@ -695,6 +726,14 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
         this.xmlFlowPreview = null;
         this.xmlFlowData = null;
         this.isDraggingXml = false;
+        this.organizeIntoLanesOnImport = false;
+    }
+    
+    /**
+     * @description Handle toggle for organize into lanes option
+     */
+    handleOrganizeLanesToggle(event) {
+        this.organizeIntoLanesOnImport = event.target.checked;
     }
     
     /**
@@ -839,8 +878,25 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
             return el?.textContent || '';
         };
         
+        // Salesforce metadata XML uses <n> for element names, not <name>
+        const getName = (parent) => {
+            return getText(parent, 'n') || getText(parent, 'name');
+        };
+        
         const getAll = (parent, tagName) => {
             return Array.from(parent.querySelectorAll(tagName) || parent.getElementsByTagName(tagName));
+        };
+        
+        // Helper to get direct child elements only (not nested)
+        const getDirectChildren = (parent, tagName) => {
+            const results = [];
+            const children = parent.children || parent.childNodes;
+            for (let i = 0; i < children.length; i++) {
+                if (children[i].tagName === tagName) {
+                    results.push(children[i]);
+                }
+            }
+            return results;
         };
         
         const flowData = {
@@ -875,11 +931,11 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
         }
         
         // Parse decisions
-        getAll(flowElement, 'decisions').forEach(el => {
+        getDirectChildren(flowElement, 'decisions').forEach(el => {
             const rules = [];
-            getAll(el, 'rules').forEach(ruleEl => {
+            getDirectChildren(el, 'rules').forEach(ruleEl => {
                 rules.push({
-                    name: getText(ruleEl, 'name'),
+                    name: getName(ruleEl),
                     label: getText(ruleEl, 'label'),
                     connector: {
                         targetReference: getText(ruleEl, 'connector > targetReference')
@@ -888,7 +944,7 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
             });
             
             flowData.decisions.push({
-                name: getText(el, 'name'),
+                name: getName(el),
                 label: getText(el, 'label'),
                 rules: rules,
                 defaultConnector: {
@@ -898,9 +954,9 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
         });
         
         // Parse assignments
-        getAll(flowElement, 'assignments').forEach(el => {
+        getDirectChildren(flowElement, 'assignments').forEach(el => {
             flowData.assignments.push({
-                name: getText(el, 'name'),
+                name: getName(el),
                 label: getText(el, 'label'),
                 connector: {
                     targetReference: getText(el, 'connector > targetReference')
@@ -909,9 +965,9 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
         });
         
         // Parse recordCreates
-        getAll(flowElement, 'recordCreates').forEach(el => {
+        getDirectChildren(flowElement, 'recordCreates').forEach(el => {
             flowData.recordCreates.push({
-                name: getText(el, 'name'),
+                name: getName(el),
                 label: getText(el, 'label'),
                 object: getText(el, 'object'),
                 connector: {
@@ -924,9 +980,9 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
         });
         
         // Parse recordUpdates
-        getAll(flowElement, 'recordUpdates').forEach(el => {
+        getDirectChildren(flowElement, 'recordUpdates').forEach(el => {
             flowData.recordUpdates.push({
-                name: getText(el, 'name'),
+                name: getName(el),
                 label: getText(el, 'label'),
                 object: getText(el, 'object'),
                 connector: {
@@ -939,9 +995,9 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
         });
         
         // Parse recordDeletes
-        getAll(flowElement, 'recordDeletes').forEach(el => {
+        getDirectChildren(flowElement, 'recordDeletes').forEach(el => {
             flowData.recordDeletes.push({
-                name: getText(el, 'name'),
+                name: getName(el),
                 label: getText(el, 'label'),
                 object: getText(el, 'object'),
                 connector: {
@@ -954,9 +1010,9 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
         });
         
         // Parse recordLookups
-        getAll(flowElement, 'recordLookups').forEach(el => {
+        getDirectChildren(flowElement, 'recordLookups').forEach(el => {
             flowData.recordLookups.push({
-                name: getText(el, 'name'),
+                name: getName(el),
                 label: getText(el, 'label'),
                 object: getText(el, 'object'),
                 connector: {
@@ -969,9 +1025,9 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
         });
         
         // Parse screens
-        getAll(flowElement, 'screens').forEach(el => {
+        getDirectChildren(flowElement, 'screens').forEach(el => {
             flowData.screens.push({
-                name: getText(el, 'name'),
+                name: getName(el),
                 label: getText(el, 'label'),
                 connector: {
                     targetReference: getText(el, 'connector > targetReference')
@@ -980,9 +1036,9 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
         });
         
         // Parse actionCalls
-        getAll(flowElement, 'actionCalls').forEach(el => {
+        getDirectChildren(flowElement, 'actionCalls').forEach(el => {
             flowData.actionCalls.push({
-                name: getText(el, 'name'),
+                name: getName(el),
                 label: getText(el, 'label'),
                 actionName: getText(el, 'actionName'),
                 actionType: getText(el, 'actionType'),
@@ -996,9 +1052,9 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
         });
         
         // Parse subflows
-        getAll(flowElement, 'subflows').forEach(el => {
+        getDirectChildren(flowElement, 'subflows').forEach(el => {
             flowData.subflows.push({
-                name: getText(el, 'name'),
+                name: getName(el),
                 label: getText(el, 'label'),
                 flowName: getText(el, 'flowName'),
                 connector: {
@@ -1008,10 +1064,11 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
         });
         
         // Parse loops
-        getAll(flowElement, 'loops').forEach(el => {
+        getDirectChildren(flowElement, 'loops').forEach(el => {
             flowData.loops.push({
-                name: getText(el, 'name'),
+                name: getName(el),
                 label: getText(el, 'label'),
+                collectionReference: getText(el, 'collectionReference'),
                 nextValueConnector: {
                     targetReference: getText(el, 'nextValueConnector > targetReference')
                 },
@@ -1022,9 +1079,9 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
         });
         
         // Parse waits
-        getAll(flowElement, 'waits').forEach(el => {
+        getDirectChildren(flowElement, 'waits').forEach(el => {
             flowData.waits.push({
-                name: getText(el, 'name'),
+                name: getName(el),
                 label: getText(el, 'label'),
                 defaultConnector: {
                     targetReference: getText(el, 'defaultConnector > targetReference')
@@ -1078,6 +1135,16 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
                 autoLayout: true
             });
             
+            // Organize into lanes if option is selected
+            if (this.organizeIntoLanesOnImport) {
+                // Small delay to ensure canvas has rendered
+                // eslint-disable-next-line @lwc/lwc/no-async-operation
+                setTimeout(() => {
+                    canvas.organizeIntoLanes();
+                    this.calculateProcessScore();
+                }, 100);
+            }
+            
             this.showToast(
                 'Success', 
                 `Imported ${result.elements.length} elements and ${result.connections.length} connections from "${this.xmlFileName}"`,
@@ -1087,7 +1154,7 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
             // Mark as having changes
             this.hasUnsavedChanges = true;
             
-            // Close modal
+            // Close modal and reset state
             this.handleImportModalClose();
             
         } catch (error) {
@@ -1136,6 +1203,16 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
                     clearCanvas: true,
                     autoLayout: true
                 });
+                
+                // Organize into lanes if option is selected
+                if (this.organizeIntoLanesOnImport) {
+                    // Small delay to ensure canvas has rendered
+                    // eslint-disable-next-line @lwc/lwc/no-async-operation
+                    setTimeout(() => {
+                        canvas.organizeIntoLanes();
+                        this.calculateProcessScore();
+                    }, 100);
+                }
                 
                 this.showToast(
                     'Success', 

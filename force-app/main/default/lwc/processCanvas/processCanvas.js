@@ -1,8 +1,8 @@
 /**
  * @description SVG Canvas component for rendering and editing BPMN process diagrams
  * @author Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
- * @date 2024-12-14
- * @version 1.1.1
+ * @date 2024-12-15
+ * @version 1.2.0
  * 
  * EXPLANATION:
  * This is the core canvas component for the Process Modeling Studio. It provides:
@@ -12,6 +12,7 @@
  * - Keyboard shortcuts for common operations
  * - Canvas state management (JSON serialization)
  * - Process Quality Scoring based on CFC (Control-Flow Complexity) metrics
+ * - Swimlane organization with Pool and Lane containers
  * 
  * PAN MODES:
  * - Middle mouse button: Always pans
@@ -36,6 +37,11 @@
  * - AND gateways: CFC = 1 (CONSTANT - all paths execute, ONE mental state)
  * - OR gateways: CFC = 2^fan-out - 1 (EXPONENTIAL - any combination possible)
  * 
+ * SWIMLANE ORGANIZATION:
+ * - organizeIntoLanes(): Creates Pool with 3 lanes (User, Logic, Data)
+ * - Elements are categorized by type and repositioned into appropriate lanes
+ * - Connections are automatically re-routed between lanes
+ * 
  * CHANGELOG:
  * Version | Date       | Author | Description
  * --------|------------|--------|------------------------------------------
@@ -45,6 +51,9 @@
  * 1.1.0   | 2024-12-14 | DvM    | Added: Process Quality Scoring with CFC metrics
  * 1.1.1   | 2024-12-14 | DvM    | Fixed: Pan mode (shift+drag, background drag)
  *                                 Added: handleCanvasMouseLeave handler
+ * 1.2.0   | 2024-12-15 | DvM    | Added: Swimlane organization (organizeIntoLanes)
+ *                                 Added: Auto layout button (autoLayout)
+ *                                 Added: Task type icons on canvas elements
  */
 import { LightningElement, api, track } from 'lwc';
 
@@ -420,6 +429,47 @@ const CONNECTION_TYPES = {
     DataAssociation: { stroke: '#718096', strokeWidth: 1.5, dashed: true, markerEnd: 'arrow' }
 };
 
+// =========================================================================
+// LANE CATEGORY CONFIGURATION
+// Maps element types to their responsible lane (User, Logic, Data)
+// =========================================================================
+const LANE_CATEGORIES = {
+    user: {
+        name: 'User Interaction',
+        icon: '👤',
+        types: [
+            'StartEvent', 'EndEvent', 'ScreenTask', 'UserTask', 'ManualTask',
+            'MessageStartEvent', 'TimerStartEvent', 'SignalStartEvent',
+            'MessageEndEvent', 'SignalEndEvent', 'ErrorEndEvent', 'TerminateEndEvent',
+            'WaitEvent'
+        ],
+        fill: 'rgba(190, 227, 248, 0.15)',
+        stroke: '#3182CE'
+    },
+    logic: {
+        name: 'Process Logic',
+        icon: '⚙️',
+        types: [
+            'ExclusiveGateway', 'ParallelGateway', 'InclusiveGateway',
+            'EventBasedGateway', 'ComplexGateway',
+            'AssignmentTask', 'LoopTask'
+        ],
+        fill: 'rgba(254, 235, 200, 0.15)',
+        stroke: '#D69E2E'
+    },
+    data: {
+        name: 'Data Operations',
+        icon: '💾',
+        types: [
+            'RecordLookupTask', 'RecordCreateTask', 'RecordUpdateTask', 'RecordDeleteTask',
+            'ActionCallTask', 'ServiceTask', 'ScriptTask', 'BusinessRuleTask',
+            'SendTask', 'ReceiveTask', 'CallActivity', 'SubProcess'
+        ],
+        fill: 'rgba(198, 246, 213, 0.15)',
+        stroke: '#38A169'
+    }
+};
+
 export default class ProcessCanvas extends LightningElement {
     // =========================================================================
     // PUBLIC API
@@ -597,6 +647,12 @@ export default class ProcessCanvas extends LightningElement {
         // Track element name to ID mapping for connections
         const elementNameToId = new Map();
         
+        // =====================================================================
+        // LOOP DETECTION: Analyze loops and identify their body elements
+        // =====================================================================
+        const loopInfo = this.analyzeFlowLoops(flowData);
+        console.log('Loop analysis:', loopInfo);
+        
         // Starting position for layout
         let currentX = 100;
         let currentY = 100;
@@ -655,6 +711,9 @@ export default class ProcessCanvas extends LightningElement {
                 const posX = currentX + (col * HORIZONTAL_SPACING);
                 const posY = currentY + (row * VERTICAL_SPACING);
                 
+                // Check if this element is part of a loop
+                const elementLoopInfo = loopInfo.elementLoopMap.get(flowEl.name);
+                
                 // Build Salesforce metadata
                 const sfMetadata = {
                     apiName: flowEl.name,
@@ -665,7 +724,15 @@ export default class ProcessCanvas extends LightningElement {
                     processType: flowData.processType || '',
                     isImported: true,
                     sourceFile: flowData.apiName || '',
-                    faultConnector: flowEl.faultConnector?.targetReference || null
+                    faultConnector: flowEl.faultConnector?.targetReference || null,
+                    // Loop information
+                    isInLoop: !!elementLoopInfo,
+                    loopName: elementLoopInfo?.loopName || null,
+                    loopId: elementLoopInfo?.loopId || null,
+                    isLoopElement: type === 'FlowLoop',
+                    loopCollection: type === 'FlowLoop' ? flowEl.collectionReference : null,
+                    loopNextTarget: type === 'FlowLoop' ? flowEl.nextValueConnector?.targetReference : null,
+                    loopExitTarget: type === 'FlowLoop' ? flowEl.noMoreValuesConnector?.targetReference : null
                 };
                 
                 // Handle specific element types
@@ -701,6 +768,30 @@ export default class ProcessCanvas extends LightningElement {
                         targetName: flowEl.connector.targetReference,
                         type: 'SequenceFlow'
                     });
+                }
+                
+                // Handle loop connectors (nextValue and noMoreValues)
+                if (type === 'FlowLoop') {
+                    if (flowEl.nextValueConnector?.targetReference) {
+                        this._pendingConnections = this._pendingConnections || [];
+                        this._pendingConnections.push({
+                            sourceId: elementId,
+                            targetName: flowEl.nextValueConnector.targetReference,
+                            type: 'SequenceFlow',
+                            label: 'Next Item',
+                            isLoopIteration: true
+                        });
+                    }
+                    if (flowEl.noMoreValuesConnector?.targetReference) {
+                        this._pendingConnections = this._pendingConnections || [];
+                        this._pendingConnections.push({
+                            sourceId: elementId,
+                            targetName: flowEl.noMoreValuesConnector.targetReference,
+                            type: 'SequenceFlow',
+                            label: 'Done',
+                            isLoopExit: true
+                        });
+                    }
                 }
                 
                 // Handle decision outcomes (multiple connectors)
@@ -768,7 +859,16 @@ export default class ProcessCanvas extends LightningElement {
             this._pendingConnections.forEach(pending => {
                 const targetId = elementNameToId.get(pending.targetName);
                 if (targetId) {
-                    this.addConnection(pending.sourceId, targetId, pending.type || 'SequenceFlow');
+                    const connId = this.addConnection(pending.sourceId, targetId, pending.type || 'SequenceFlow');
+                    // Mark loop-related connections
+                    if (connId && (pending.isLoopIteration || pending.isLoopExit)) {
+                        const conn = this.connections.find(c => c.id === connId);
+                        if (conn) {
+                            conn.isLoopIteration = pending.isLoopIteration || false;
+                            conn.isLoopExit = pending.isLoopExit || false;
+                            conn.label = pending.label || '';
+                        }
+                    }
                     result.connections.push({
                         sourceId: pending.sourceId,
                         targetId,
@@ -781,6 +881,9 @@ export default class ProcessCanvas extends LightningElement {
             // Clear pending connections
             this._pendingConnections = [];
         }
+        
+        // Store loop info for later use (e.g., in organizeIntoLanes)
+        this._loopInfo = loopInfo;
         
         // 4.5 Connect terminal elements to End event
         // Find elements with no outgoing connections (terminal nodes)
@@ -850,6 +953,165 @@ export default class ProcessCanvas extends LightningElement {
                 metadata: result.metadata
             }
         }));
+        
+        return result;
+    }
+    
+    /**
+     * @description Analyze flow loops and identify all elements within each loop body
+     * Traces connector paths from loop's nextValueConnector to find all elements
+     * that eventually connect back to the loop element
+     * @param {Object} flowData - The parsed flow metadata
+     * @returns {Object} Loop analysis with loops array and elementLoopMap
+     */
+    analyzeFlowLoops(flowData) {
+        const result = {
+            loops: [],           // Array of { name, label, collection, bodyElements, exitTarget }
+            elementLoopMap: new Map()  // Map of elementName -> { loopName, loopId }
+        };
+        
+        // Get all loops from flow data
+        const loops = flowData.loops;
+        console.log('analyzeFlowLoops: Found loops:', loops);
+        if (!loops) return result;
+        
+        const loopArray = Array.isArray(loops) ? loops : [loops];
+        if (loopArray.length === 0) return result;
+        
+        // Build a connector map for all flow elements
+        // Maps element name -> array of { target, type }
+        const connectorMap = new Map();
+        
+        // Helper to add connectors from various flow element types
+        const addConnectors = (elements, elementType) => {
+            if (!elements) return;
+            const arr = Array.isArray(elements) ? elements : [elements];
+            arr.forEach(el => {
+                if (!el || !el.name) return;
+                const targets = [];
+                
+                // Standard connector
+                if (el.connector?.targetReference) {
+                    targets.push({ target: el.connector.targetReference, type: 'connector' });
+                }
+                
+                // Decision rules
+                if (el.rules) {
+                    const rules = Array.isArray(el.rules) ? el.rules : [el.rules];
+                    rules.forEach(rule => {
+                        if (rule.connector?.targetReference) {
+                            targets.push({ target: rule.connector.targetReference, type: 'rule' });
+                        }
+                    });
+                }
+                
+                // Default connector (decisions)
+                if (el.defaultConnector?.targetReference) {
+                    targets.push({ target: el.defaultConnector.targetReference, type: 'default' });
+                }
+                
+                // Loop connectors
+                if (el.nextValueConnector?.targetReference) {
+                    targets.push({ target: el.nextValueConnector.targetReference, type: 'loopNext' });
+                }
+                if (el.noMoreValuesConnector?.targetReference) {
+                    targets.push({ target: el.noMoreValuesConnector.targetReference, type: 'loopExit' });
+                }
+                
+                // Fault connector
+                if (el.faultConnector?.targetReference) {
+                    targets.push({ target: el.faultConnector.targetReference, type: 'fault' });
+                }
+                
+                if (targets.length > 0) {
+                    connectorMap.set(el.name, targets);
+                }
+            });
+        };
+        
+        // Build connector map from all element types
+        addConnectors(flowData.screens, 'FlowScreen');
+        addConnectors(flowData.decisions, 'FlowDecision');
+        addConnectors(flowData.recordCreates, 'FlowRecordCreate');
+        addConnectors(flowData.recordUpdates, 'FlowRecordUpdate');
+        addConnectors(flowData.recordDeletes, 'FlowRecordDelete');
+        addConnectors(flowData.recordLookups, 'FlowRecordLookup');
+        addConnectors(flowData.assignments, 'FlowAssignment');
+        addConnectors(flowData.actionCalls, 'FlowActionCall');
+        addConnectors(flowData.subflows, 'FlowSubflow');
+        addConnectors(flowData.loops, 'FlowLoop');
+        addConnectors(flowData.waits, 'FlowWait');
+        
+        // For each loop, trace the body elements
+        // Get all loop names first so we can detect when we hit another loop
+        const allLoopNames = new Set(loopArray.map(l => l.name).filter(Boolean));
+        
+        loopArray.forEach((loop, index) => {
+            if (!loop || !loop.name) return;
+            
+            const loopName = loop.name;
+            const loopLabel = loop.label || loopName;
+            const nextTarget = loop.nextValueConnector?.targetReference;
+            const exitTarget = loop.noMoreValuesConnector?.targetReference;
+            const collection = loop.collectionReference || '';
+            
+            // Find all elements in the loop body by tracing from nextTarget
+            // until we find paths that lead back to the loop element
+            const bodyElements = new Set();
+            const visited = new Set();
+            
+            const traceLoopBody = (elementName) => {
+                if (!elementName || visited.has(elementName)) return;
+                if (elementName === loopName) return; // Found THIS loop - cycle complete
+                if (elementName === exitTarget) return; // Exit path, not part of body
+                
+                // Stop if we hit ANOTHER loop element (don't include nested loops in body)
+                if (allLoopNames.has(elementName) && elementName !== loopName) {
+                    return;
+                }
+                
+                visited.add(elementName);
+                bodyElements.add(elementName);
+                
+                // Get all outgoing connections from this element
+                const connectors = connectorMap.get(elementName);
+                if (connectors) {
+                    connectors.forEach(conn => {
+                        // Don't follow fault connectors into loop body
+                        if (conn.type !== 'fault') {
+                            traceLoopBody(conn.target);
+                        }
+                    });
+                }
+            };
+            
+            // Start tracing from the nextValueConnector target
+            if (nextTarget) {
+                traceLoopBody(nextTarget);
+            }
+            
+            // Store loop info
+            const loopInfo = {
+                name: loopName,
+                label: loopLabel,
+                collection: collection,
+                bodyElements: Array.from(bodyElements),
+                exitTarget: exitTarget,
+                loopId: `loop_${index}`
+            };
+            result.loops.push(loopInfo);
+            
+            // Map each body element to its loop
+            bodyElements.forEach(elName => {
+                result.elementLoopMap.set(elName, {
+                    loopName: loopName,
+                    loopLabel: loopLabel,
+                    loopId: loopInfo.loopId
+                });
+            });
+            
+            console.log(`Loop "${loopLabel}" body elements:`, Array.from(bodyElements));
+        });
         
         return result;
     }
@@ -1230,6 +1492,333 @@ export default class ProcessCanvas extends LightningElement {
         if (index === -1) return;
         
         this.elements[index] = { ...this.elements[index], ...properties };
+        this.elements = [...this.elements];
+        this.notifyCanvasChange();
+    }
+    
+    // =========================================================================
+    // SWIMLANE ORGANIZATION
+    // =========================================================================
+    
+    /**
+     * @api
+     * @description Organize all elements into swimlanes based on their type
+     * Creates a Pool with 3 lanes (User, Logic, Data) and repositions elements
+     * Groups loop elements together within SubProcess containers
+     */
+    @api
+    organizeIntoLanes() {
+        try {
+            // 1. Filter out existing Pools, Lanes, and SubProcess containers
+            const processElements = this.elements
+                .filter(el => el.type !== 'Pool' && el.type !== 'Lane' && el.type !== 'SubProcess')
+                .map(el => ({ ...el })); // Create copies to avoid mutation
+            
+            if (processElements.length === 0) {
+                console.warn('No elements to organize into lanes');
+                return;
+            }
+            
+            // 2. Get loop information (stored during import)
+            const loopInfo = this._loopInfo || { loops: [], elementLoopMap: new Map() };
+            console.log('organizeIntoLanes - loopInfo:', {
+                loopCount: loopInfo?.loops?.length || 0,
+                loops: loopInfo?.loops?.map(l => ({
+                    name: l.name,
+                    label: l.label,
+                    bodyElements: l.bodyElements
+                }))
+            });
+            
+            // Helper to get API name
+            const getApiName = (el) => el.salesforceMetadata?.apiName || el.apiName || el.name || '';
+            
+            // Get loop names for filtering
+            const loopNames = new Set((loopInfo.loops || []).map(l => l.name));
+            
+            // 3. Remove loop TASK elements - they will be replaced by loop CONTAINERS
+            // Keep only non-loop elements for lane organization
+            const nonLoopElements = processElements.filter(el => {
+                const apiName = getApiName(el);
+                const isLoopTask = loopNames.has(apiName) || el.salesforceMetadata?.isLoopElement;
+                if (isLoopTask) {
+                    console.log(`Removing loop task element: ${el.name} (${apiName})`);
+                }
+                return !isLoopTask;
+            });
+            
+            console.log(`Filtered ${processElements.length - nonLoopElements.length} loop task elements`);
+            
+            // 4. Define lane configuration
+            const laneKeys = ['user', 'logic', 'data'];
+            const laneHeight = 160;
+            const poolHeaderWidth = 30;
+            const startX = 120;
+            const columnWidth = 200; // Fixed column width - ensures no overlap (element max ~140px + 60px gap)
+            const poolY = 50;
+            
+            // 5. Assign elements to lanes based on type
+            nonLoopElements.forEach(el => {
+                let assignedLane = 'logic'; // default
+                for (const [key, config] of Object.entries(LANE_CATEGORIES)) {
+                    if (config.types.includes(el.type)) {
+                        assignedLane = key;
+                        break;
+                    }
+                }
+                el.laneKey = assignedLane;
+            });
+            
+            // 6. Sort ALL elements by original X position to maintain flow order
+            nonLoopElements.sort((a, b) => a.x - b.x);
+            
+            // 7. Reposition elements - each element gets its own column
+            // Each element is centered in its column
+            nonLoopElements.forEach((el, idx) => {
+                const laneIdx = laneKeys.indexOf(el.laneKey);
+                const laneCenterY = poolY + (laneIdx * laneHeight) + (laneHeight / 2);
+                const elWidth = el.width || ELEMENT_TYPES[el.type]?.width || 120;
+                const elHeight = el.height || ELEMENT_TYPES[el.type]?.height || 80;
+                
+                // Center element in its column
+                const columnCenterX = startX + (idx * columnWidth) + (columnWidth / 2);
+                el.x = columnCenterX - (elWidth / 2);
+                el.y = laneCenterY - (elHeight / 2);
+            });
+            
+            // 8. Calculate pool dimensions
+            let maxX = startX;
+            nonLoopElements.forEach(el => {
+                const width = el.width || ELEMENT_TYPES[el.type]?.width || 120;
+                maxX = Math.max(maxX, el.x + width);
+            });
+            
+            const poolWidth = maxX - startX + 200 + poolHeaderWidth;
+            const poolHeight = laneHeight * laneKeys.length;
+            const poolX = startX - 80 - poolHeaderWidth;
+            
+            // 9. Create Pool
+            const poolId = this.generateId('pool');
+            const pool = {
+                id: poolId,
+                type: 'Pool',
+                name: this.importedFlowLabel || 'Process',
+                x: poolX,
+                y: poolY,
+                width: poolWidth,
+                height: poolHeight,
+                orientation: 'horizontal'
+            };
+            
+            // 10. Create Lanes
+            const lanes = laneKeys.map((key, idx) => {
+                const config = LANE_CATEGORIES[key];
+                return {
+                    id: this.generateId('lane'),
+                    type: 'Lane',
+                    name: `${config.icon} ${config.name}`,
+                    x: poolX + poolHeaderWidth,
+                    y: poolY + (idx * laneHeight),
+                    width: poolWidth - poolHeaderWidth,
+                    height: laneHeight,
+                    parentId: poolId,
+                    laneKey: key,
+                    fill: config.fill,
+                    stroke: config.stroke
+                };
+            });
+            
+            // Store lane IDs on elements
+            const laneByKey = {};
+            lanes.forEach((lane, idx) => {
+                laneByKey[laneKeys[idx]] = lane;
+            });
+            nonLoopElements.forEach(el => {
+                el.laneId = laneByKey[el.laneKey].id;
+            });
+            
+            // 11. Mark elements that are in loops with loop styling info
+            // Instead of containers, elements get visual indicators (striped borders)
+            const loopColors = [
+                { stroke: '#8B5CF6', fill: 'rgba(139, 92, 246, 0.12)', name: 'purple' },  // Purple
+                { stroke: '#F59E0B', fill: 'rgba(245, 158, 11, 0.12)', name: 'amber' },   // Amber
+                { stroke: '#10B981', fill: 'rgba(16, 185, 129, 0.12)', name: 'emerald' }, // Emerald
+                { stroke: '#EC4899', fill: 'rgba(236, 72, 153, 0.12)', name: 'pink' },    // Pink
+                { stroke: '#3B82F6', fill: 'rgba(59, 130, 246, 0.12)', name: 'blue' }     // Blue
+            ];
+            
+            let loopElementCount = 0;
+            if (loopInfo && loopInfo.loops && loopInfo.loops.length > 0) {
+                console.log('=== MARKING LOOP ELEMENTS ===');
+                loopInfo.loops.forEach((loop, loopIdx) => {
+                    const loopColor = loopColors[loopIdx % loopColors.length];
+                    console.log(`Loop ${loopIdx + 1}: "${loop.label}" (${loop.name}) - color: ${loopColor.name}`);
+                    console.log('  Body elements:', loop.bodyElements);
+                    
+                    nonLoopElements.forEach(el => {
+                        const elApiName = getApiName(el);
+                        if (loop.bodyElements && loop.bodyElements.includes(elApiName)) {
+                            el.isInLoop = true;
+                            el.loopName = loop.name;
+                            el.loopLabel = loop.label;
+                            el.loopIndex = loopIdx;
+                            el.loopStroke = loopColor.stroke;
+                            el.loopFill = loopColor.fill;
+                            loopElementCount++;
+                            console.log(`  ✓ Element "${el.name}" (${elApiName}) marked for loop`);
+                        }
+                    });
+                });
+                console.log(`=== TOTAL LOOP ELEMENTS: ${loopElementCount} ===`);
+            }
+            
+            // 12. Rebuild elements array: pool, lanes, then elements (no loop containers)
+            this.elements = [pool, ...lanes, ...nonLoopElements];
+            
+            // 13. Update connections - reroute connections to/from loop elements
+            // Build maps for loop element routing
+            const elementIds = new Set(this.elements.map(el => el.id));
+            const loopElementIds = new Set();
+            const loopFirstBodyMap = new Map(); // loopElementId -> first body element id
+            const loopExitMap = new Map(); // loopElementId -> exit target element id
+            
+            console.log('=== CONNECTION UPDATE ===');
+            console.log('Element IDs in final array:', this.elements.length);
+            console.log('Current connections:', this.connections.length);
+            
+            // Build loop element ID set and routing maps
+            if (loopInfo && loopInfo.loops) {
+                loopInfo.loops.forEach(loop => {
+                    // Find the loop element that was removed
+                    const loopEl = processElements.find(el => getApiName(el) === loop.name);
+                    if (loopEl) {
+                        loopElementIds.add(loopEl.id);
+                        console.log(`Loop element: ${loop.name} (${loopEl.id})`);
+                        
+                        // Find first body element (for incoming connections to the loop)
+                        if (loop.bodyElements && loop.bodyElements.length > 0) {
+                            const firstBodyApiName = loop.bodyElements[0];
+                            const firstBodyEl = nonLoopElements.find(el => getApiName(el) === firstBodyApiName);
+                            if (firstBodyEl) {
+                                loopFirstBodyMap.set(loopEl.id, firstBodyEl.id);
+                                console.log(`  First body element: ${firstBodyApiName} (${firstBodyEl.id})`);
+                            }
+                        }
+                        
+                        // Find exit target (for outgoing "done/after last" connections)
+                        if (loop.exitTarget) {
+                            const exitEl = nonLoopElements.find(el => getApiName(el) === loop.exitTarget);
+                            if (exitEl) {
+                                loopExitMap.set(loopEl.id, exitEl.id);
+                                console.log(`  Exit target: ${loop.exitTarget} (${exitEl.id})`);
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Reroute connections
+            const updatedConnections = [];
+            this.connections.forEach(conn => {
+                let sourceId = conn.sourceId;
+                let targetId = conn.targetId;
+                let keep = true;
+                
+                // If source is a loop element, check if it's the iteration or exit path
+                if (loopElementIds.has(sourceId)) {
+                    // Connection FROM loop - this is either iteration (to first body) or exit
+                    // Check if target is first body element (iteration path - skip, body handles this)
+                    const firstBodyId = loopFirstBodyMap.get(sourceId);
+                    if (targetId === firstBodyId) {
+                        // This is the iteration path - we don't need it since body elements are connected
+                        keep = false;
+                        console.log(`Skipping loop iteration connection: ${sourceId} -> ${targetId}`);
+                    } else {
+                        // This might be the exit path - keep it but reroute from last body element
+                        // For now, skip these too - the flow continues from the last body element
+                        keep = false;
+                        console.log(`Skipping loop exit connection: ${sourceId} -> ${targetId}`);
+                    }
+                }
+                
+                // If target is a loop element, reroute to first body element
+                if (loopElementIds.has(targetId)) {
+                    const newTargetId = loopFirstBodyMap.get(targetId);
+                    if (newTargetId && elementIds.has(sourceId)) {
+                        console.log(`Rerouting connection TO loop: ${sourceId} -> ${targetId} => ${newTargetId}`);
+                        targetId = newTargetId;
+                    } else {
+                        keep = false;
+                    }
+                }
+                
+                // Check if both source and target exist
+                if (keep && elementIds.has(sourceId) && elementIds.has(targetId)) {
+                    updatedConnections.push({
+                        ...conn,
+                        sourceId,
+                        targetId
+                    });
+                }
+            });
+            
+            console.log(`Connections: ${this.connections.length} total, ${updatedConnections.length} after rerouting`);
+            this.connections = updatedConnections;
+            
+            // 14. Trigger re-render
+            this.notifyCanvasChange();
+            
+            console.log('Organized into lanes:', {
+                pool: pool.id,
+                lanes: lanes.map(l => l.name),
+                loopElements: loopElementCount,
+                totalElements: nonLoopElements.length
+            });
+        } catch (error) {
+            console.error('Error in organizeIntoLanes:', error);
+        }
+    }
+    
+    /**
+     * @description Resolve horizontal overlaps within a lane
+     * @param {Array} elements - Elements in the same lane, sorted by X
+     */
+    resolveHorizontalOverlaps(elements) {
+        if (elements.length < 2) return;
+        
+        const minGap = 40;
+        
+        for (let i = 1; i < elements.length; i++) {
+            const prev = elements[i - 1];
+            const curr = elements[i];
+            
+            const prevWidth = prev.width || ELEMENT_TYPES[prev.type]?.width || 120;
+            const prevRight = prev.x + prevWidth;
+            
+            if (curr.x < prevRight + minGap) {
+                curr.x = prevRight + minGap;
+            }
+        }
+    }
+    
+    /**
+     * @api
+     * @description Re-run automatic layout algorithm
+     * Uses the branch-aware Sugiyama-style layout
+     */
+    @api
+    autoLayout() {
+        // Filter out pools and lanes for layout
+        const processElements = this.elements.filter(el => 
+            el.type !== 'Pool' && el.type !== 'Lane'
+        );
+        
+        if (processElements.length === 0) return;
+        
+        // Re-run the layout algorithm
+        this.applyBranchAwareLayout(processElements);
+        
+        // Update elements
         this.elements = [...this.elements];
         this.notifyCanvasChange();
     }
@@ -2785,6 +3374,8 @@ export default class ProcessCanvas extends LightningElement {
                 isPool,
                 isLane,
                 isContainer,
+                isLoopContainer: el.isLoopContainer || false,
+                isInLoop: el.isInLoop || false,
                 isSelected,
                 diamondPoints,
                 selectionPoints,
@@ -2794,6 +3385,19 @@ export default class ProcessCanvas extends LightningElement {
                 xIconPath,
                 plusIconPath,
                 circleIconRadius,
+                // Loop element styling (striped border for elements in a loop)
+                loopStroke: el.loopStroke || '#8B5CF6',
+                loopFill: el.loopFill || 'rgba(139, 92, 246, 0.12)',
+                loopLabel: el.loopLabel || '',
+                loopBadgeX: el.x + (el.width || 120) - 8,
+                loopBadgeY: el.y - 8,
+                // Loop container properties (for SubProcess rendering)
+                loopLabelY: el.isLoopContainer ? el.y + 14 : labelY,
+                loopMarkerX: el.isLoopContainer ? el.x + (el.width / 2) : 0,
+                loopMarkerY: el.isLoopContainer ? el.y + el.height - 15 : 0,
+                loopMarkerPath: el.isLoopContainer 
+                    ? `M${el.x + (el.width / 2) - 6},${el.y + el.height - 18} A5,5 0 1,1 ${el.x + (el.width / 2) + 2},${el.y + el.height - 22} M${el.x + (el.width / 2) + 2},${el.y + el.height - 22} L${el.x + (el.width / 2) - 1},${el.y + el.height - 20} M${el.x + (el.width / 2) + 2},${el.y + el.height - 22} L${el.x + (el.width / 2)},${el.y + el.height - 25}`
+                    : '',
                 // Wrapped label properties
                 wrappedLabel,
                 labelLine1: wrappedLabel[0] || '',
@@ -2815,8 +3419,21 @@ export default class ProcessCanvas extends LightningElement {
                     : (labelY + 32),  // External labels: 32px below line 1
                 showUserIcon: typeConfig.icon === 'user',
                 showServiceIcon: typeConfig.icon === 'service',
+                showScriptIcon: typeConfig.icon === 'script',
+                showManualIcon: typeConfig.icon === 'manual',
+                showRuleIcon: typeConfig.icon === 'rule',
+                showSendIcon: typeConfig.icon === 'send',
+                showReceiveIcon: typeConfig.icon === 'receive',
+                showScreenIcon: typeConfig.icon === 'screen',
+                showCreateIcon: typeConfig.icon === 'create',
+                showUpdateIcon: typeConfig.icon === 'update',
+                showDeleteIcon: typeConfig.icon === 'delete',
+                showLookupIcon: typeConfig.icon === 'lookup',
+                showAssignmentIcon: typeConfig.icon === 'assignment',
+                showLoopIcon: typeConfig.icon === 'loop',
+                showActionIcon: typeConfig.icon === 'action',
                 iconTransform: `translate(${el.x + 8}, ${el.y + 8})`,
-                labelX: centerX,
+                labelX: el.isLoopContainer ? el.x + 12 : centerX,
                 labelY,
                 labelInside,
                 strokeDasharray: typeConfig.dashed ? '5,3' : 'none',
