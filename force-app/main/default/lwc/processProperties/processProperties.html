@@ -33,6 +33,27 @@
         </div>
         
         <!-- ============================================ -->
+        <!-- IMPORTED FLOW INFO SECTION -->
+        <!-- ============================================ -->
+        <template if:true={hasImportedFlow}>
+            <div class="imported-flow-section">
+                <div class="flow-info-header">
+                    <lightning-icon icon-name="utility:flow" size="x-small"></lightning-icon>
+                    <span class="flow-info-title">Imported Flow</span>
+                </div>
+                <div class="flow-info-content">
+                    <div class="flow-info-name">{importedFlowName}</div>
+                    <div class="flow-info-details">
+                        <span class="flow-info-type">{importedFlowType}</span>
+                        <template if:true={importedFlowApiName}>
+                            <span class="flow-info-api-name">{importedFlowApiName}</span>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </template>
+        
+        <!-- ============================================ -->
         <!-- PROCESS QUALITY SCORE SECTION (Always visible) -->
         <!-- ============================================ -->
         <template if:true={hasScoreData}>
@@ -246,6 +267,51 @@
                     </div>
                 </template>
                 
+                <!-- Pool/Lane Container Properties -->
+                <template if:true={showContainerFields}>
+                    <div class="properties-section container-section">
+                        <h4 class="section-title">Container Settings</h4>
+                        
+                        <lightning-combobox
+                            label="Orientation"
+                            value={selectedOrientation}
+                            options={orientationOptions}
+                            onchange={handleOrientationChange}
+                            disabled={readOnly}
+                            class="property-field"
+                        ></lightning-combobox>
+                        
+                        <div class="dimension-fields">
+                            <lightning-input
+                                type="number"
+                                label="Width"
+                                value={elementWidth}
+                                onchange={handleWidthChange}
+                                disabled={readOnly}
+                                min="100"
+                                step="10"
+                                class="property-field dimension-input"
+                            ></lightning-input>
+                            
+                            <lightning-input
+                                type="number"
+                                label="Height"
+                                value={elementHeight}
+                                onchange={handleHeightChange}
+                                disabled={readOnly}
+                                min="80"
+                                step="10"
+                                class="property-field dimension-input"
+                            ></lightning-input>
+                        </div>
+                        
+                        <p class="container-help-text">
+                            Drag resize handles on canvas or enter dimensions manually. 
+                            Elements inside will move with the container.
+                        </p>
+                    </div>
+                </template>
+                
                 <!-- Gateway Complexity Info Box -->
                 <template if:true={showGatewayComplexity}>
                     <div class="properties-section">
@@ -273,6 +339,105 @@
                                 </div>
                             </template>
                         </div>
+                    </div>
+                </template>
+                
+                <!-- ============================================ -->
+                <!-- SALESFORCE METADATA SECTION -->
+                <!-- ============================================ -->
+                <template if:true={showSalesforceSection}>
+                    <div class="properties-section salesforce-section">
+                        <h4 class="section-title">
+                            <lightning-icon icon-name="utility:salesforce1" size="x-small" class="sf-icon"></lightning-icon>
+                            Salesforce Metadata
+                            <template if:true={isImportedFromSalesforce}>
+                                <span class="imported-badge">Imported</span>
+                            </template>
+                        </h4>
+                        
+                        <!-- API Name (read-only if imported) -->
+                        <lightning-input
+                            label="API Name"
+                            value={salesforceApiName}
+                            onchange={handleSalesforceApiNameChange}
+                            disabled={isImportedFromSalesforce}
+                            class="property-field"
+                            placeholder="e.g., Check_Credit_Decision"
+                        ></lightning-input>
+                        
+                        <!-- Flow Element Type (display only) -->
+                        <template if:true={salesforceFlowElementType}>
+                            <div class="sf-info-row">
+                                <span class="sf-info-label">Flow Element Type:</span>
+                                <span class="sf-info-value">
+                                    <lightning-badge label={salesforceFlowElementTypeLabel}></lightning-badge>
+                                </span>
+                            </div>
+                        </template>
+                        
+                        <!-- Process Type (display only for imported) -->
+                        <template if:true={salesforceProcessTypeLabel}>
+                            <div class="sf-info-row">
+                                <span class="sf-info-label">Process Type:</span>
+                                <span class="sf-info-value">{salesforceProcessTypeLabel}</span>
+                            </div>
+                        </template>
+                        
+                        <!-- Trigger Type (for start events) -->
+                        <template if:true={salesforceTriggerType}>
+                            <div class="sf-info-row">
+                                <span class="sf-info-label">Trigger:</span>
+                                <span class="sf-info-value">{salesforceTriggerTypeLabel}</span>
+                            </div>
+                        </template>
+                        
+                        <!-- Object API Name (for record operations) -->
+                        <template if:true={hasSalesforceObject}>
+                            <lightning-input
+                                label="Object API Name"
+                                value={salesforceObjectApiName}
+                                onchange={handleSalesforceObjectChange}
+                                disabled={readOnly}
+                                class="property-field"
+                                placeholder="e.g., Account, Custom_Object__c"
+                            ></lightning-input>
+                        </template>
+                        
+                        <!-- Action Type (for action calls) -->
+                        <template if:true={salesforceActionType}>
+                            <lightning-combobox
+                                label="Action Type"
+                                value={salesforceActionType}
+                                options={actionTypeOptions}
+                                onchange={handleSalesforceActionTypeChange}
+                                disabled={readOnly}
+                                class="property-field"
+                            ></lightning-combobox>
+                        </template>
+                        
+                        <!-- Apex Class Name (for apex actions) -->
+                        <template if:true={hasSalesforceApex}>
+                            <lightning-input
+                                label="Apex Class"
+                                value={salesforceApexClassName}
+                                onchange={handleSalesforceApexClassChange}
+                                disabled={readOnly}
+                                class="property-field"
+                                placeholder="e.g., MyInvocableClass"
+                            ></lightning-input>
+                        </template>
+                        
+                        <!-- LWC Component Name (for screens) -->
+                        <template if:true={hasSalesforceLwc}>
+                            <lightning-input
+                                label="LWC Component"
+                                value={salesforceLwcComponentName}
+                                onchange={handleSalesforceLwcChange}
+                                disabled={readOnly}
+                                class="property-field"
+                                placeholder="e.g., myCustomScreenComponent"
+                            ></lightning-input>
+                        </template>
                     </div>
                 </template>
                 

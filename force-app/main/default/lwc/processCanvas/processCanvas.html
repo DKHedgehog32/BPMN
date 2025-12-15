@@ -152,16 +152,24 @@
                                 ></circle>
                             </template>
                             
-                            <!-- Event label (below) -->
+                            <!-- Event label (below) - Line 1 always shown -->
                             <text
                                 x={el.labelX}
                                 y={el.labelY}
                                 text-anchor="middle"
                                 dominant-baseline="hanging"
                                 class="element-label"
-                            >
-                                {el.name}
-                            </text>
+                            >{el.labelLine1}</text>
+                            <!-- Event label Line 2 (only if hasLine2) -->
+                            <template if:true={el.hasLine2}>
+                                <text
+                                    x={el.labelX}
+                                    y={el.labelLine2Y}
+                                    text-anchor="middle"
+                                    dominant-baseline="hanging"
+                                    class="element-label"
+                                >{el.labelLine2}</text>
+                            </template>
                         </template>
                         
                         <!-- ============================================ -->
@@ -196,16 +204,34 @@
                                 stroke-dasharray={el.strokeDasharray}
                             ></rect>
                             
-                            <!-- Task label (inside, centered) -->
+                            <!-- Task label (inside, centered) - Line 1 always shown -->
                             <text
                                 x={el.centerX}
-                                y={el.centerY}
+                                y={el.labelLine1Y}
                                 text-anchor="middle"
                                 dominant-baseline="middle"
                                 class="element-label"
-                            >
-                                {el.name}
-                            </text>
+                            >{el.labelLine1}</text>
+                            <!-- Task label Line 2 (only if hasLine2) -->
+                            <template if:true={el.hasLine2}>
+                                <text
+                                    x={el.centerX}
+                                    y={el.labelLine2Y}
+                                    text-anchor="middle"
+                                    dominant-baseline="middle"
+                                    class="element-label"
+                                >{el.labelLine2}</text>
+                            </template>
+                            <!-- Task label Line 3 (only if hasLine3) -->
+                            <template if:true={el.hasLine3}>
+                                <text
+                                    x={el.centerX}
+                                    y={el.labelLine3Y}
+                                    text-anchor="middle"
+                                    dominant-baseline="middle"
+                                    class="element-label"
+                                >{el.labelLine3}</text>
+                            </template>
                             
                             <!-- Task type icons (top-left corner) -->
                             <template if:true={el.showUserIcon}>
@@ -279,16 +305,24 @@
                                 ></circle>
                             </template>
                             
-                            <!-- Gateway label (below) -->
+                            <!-- Gateway label (below) - Line 1 always shown -->
                             <text
                                 x={el.labelX}
                                 y={el.labelY}
                                 text-anchor="middle"
                                 dominant-baseline="hanging"
                                 class="element-label"
-                            >
-                                {el.name}
-                            </text>
+                            >{el.labelLine1}</text>
+                            <!-- Gateway label Line 2 (only if hasLine2) -->
+                            <template if:true={el.hasLine2}>
+                                <text
+                                    x={el.labelX}
+                                    y={el.labelLine2Y}
+                                    text-anchor="middle"
+                                    dominant-baseline="hanging"
+                                    class="element-label"
+                                >{el.labelLine2}</text>
+                            </template>
                             
                             <!-- ============================================ -->
                             <!-- CFC COMPLEXITY BADGE (for split gateways) -->
@@ -319,6 +353,184 @@
                                 >
                                     {el.complexityBadgeText}
                                 </text>
+                            </template>
+                        </template>
+                        
+                        <!-- ============================================ -->
+                        <!-- POOL SHAPES (Swimlane Container) -->
+                        <!-- ============================================ -->
+                        <template if:true={el.isPool}>
+                            <!-- Selection: Blue stroke overlay -->
+                            <template if:true={el.isSelected}>
+                                <rect
+                                    x={el.x}
+                                    y={el.y}
+                                    width={el.width}
+                                    height={el.height}
+                                    fill="none"
+                                    stroke="#3182CE"
+                                    stroke-width="3"
+                                    class="selection-stroke"
+                                ></rect>
+                            </template>
+                            
+                            <!-- Main pool container -->
+                            <rect
+                                x={el.x}
+                                y={el.y}
+                                width={el.width}
+                                height={el.height}
+                                fill={el.fill}
+                                stroke={el.stroke}
+                                stroke-width={el.strokeWidth}
+                            ></rect>
+                            
+                            <!-- Pool header (orientation-aware) -->
+                            <rect
+                                x={el.headerRectX}
+                                y={el.headerRectY}
+                                width={el.headerRectWidth}
+                                height={el.headerRectHeight}
+                                fill="#E2E8F0"
+                                stroke={el.stroke}
+                                stroke-width="1"
+                            ></rect>
+                            
+                            <!-- Pool label (rotated for horizontal, normal for vertical) -->
+                            <text
+                                x={el.poolLabelX}
+                                y={el.poolLabelY}
+                                text-anchor="middle"
+                                dominant-baseline="middle"
+                                class="element-label pool-label"
+                                transform={el.poolLabelTransform}
+                            >
+                                {el.name}
+                            </text>
+                            
+                            <!-- Resize handles (shown when selected) -->
+                            <template if:true={el.showResizeHandles}>
+                                <!-- North (top center) -->
+                                <rect x={el.resizeHandleNX} y={el.resizeHandleNY} width="8" height="8" 
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-n"
+                                      data-elementid={el.id} data-handle="n" onmousedown={handleResizeHandleMouseDown}></rect>
+                                <!-- South (bottom center) -->
+                                <rect x={el.resizeHandleSX} y={el.resizeHandleSY} width="8" height="8"
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-s"
+                                      data-elementid={el.id} data-handle="s" onmousedown={handleResizeHandleMouseDown}></rect>
+                                <!-- East (right center) -->
+                                <rect x={el.resizeHandleEX} y={el.resizeHandleEY} width="8" height="8"
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-e"
+                                      data-elementid={el.id} data-handle="e" onmousedown={handleResizeHandleMouseDown}></rect>
+                                <!-- West (left center) -->
+                                <rect x={el.resizeHandleWX} y={el.resizeHandleWY} width="8" height="8"
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-w"
+                                      data-elementid={el.id} data-handle="w" onmousedown={handleResizeHandleMouseDown}></rect>
+                                <!-- Northeast (top right corner) -->
+                                <rect x={el.resizeHandleNEX} y={el.resizeHandleNEY} width="8" height="8"
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-ne"
+                                      data-elementid={el.id} data-handle="ne" onmousedown={handleResizeHandleMouseDown}></rect>
+                                <!-- Northwest (top left corner) -->
+                                <rect x={el.resizeHandleNWX} y={el.resizeHandleNWY} width="8" height="8"
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-nw"
+                                      data-elementid={el.id} data-handle="nw" onmousedown={handleResizeHandleMouseDown}></rect>
+                                <!-- Southeast (bottom right corner) -->
+                                <rect x={el.resizeHandleSEX} y={el.resizeHandleSEY} width="8" height="8"
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-se"
+                                      data-elementid={el.id} data-handle="se" onmousedown={handleResizeHandleMouseDown}></rect>
+                                <!-- Southwest (bottom left corner) -->
+                                <rect x={el.resizeHandleSWX} y={el.resizeHandleSWY} width="8" height="8"
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-sw"
+                                      data-elementid={el.id} data-handle="sw" onmousedown={handleResizeHandleMouseDown}></rect>
+                            </template>
+                        </template>
+                        
+                        <!-- ============================================ -->
+                        <!-- LANE SHAPES (Role/Department within Pool) -->
+                        <!-- ============================================ -->
+                        <template if:true={el.isLane}>
+                            <!-- Selection: Blue stroke overlay -->
+                            <template if:true={el.isSelected}>
+                                <rect
+                                    x={el.x}
+                                    y={el.y}
+                                    width={el.width}
+                                    height={el.height}
+                                    fill="none"
+                                    stroke="#3182CE"
+                                    stroke-width="3"
+                                    class="selection-stroke"
+                                ></rect>
+                            </template>
+                            
+                            <!-- Main lane container -->
+                            <rect
+                                x={el.x}
+                                y={el.y}
+                                width={el.width}
+                                height={el.height}
+                                fill={el.fill}
+                                stroke={el.stroke}
+                                stroke-width={el.strokeWidth}
+                            ></rect>
+                            
+                            <!-- Lane header (orientation-aware) -->
+                            <rect
+                                x={el.headerRectX}
+                                y={el.headerRectY}
+                                width={el.headerRectWidth}
+                                height={el.headerRectHeight}
+                                fill="#EDF2F7"
+                                stroke={el.stroke}
+                                stroke-width="1"
+                            ></rect>
+                            
+                            <!-- Lane label (rotated for horizontal, normal for vertical) -->
+                            <text
+                                x={el.poolLabelX}
+                                y={el.poolLabelY}
+                                text-anchor="middle"
+                                dominant-baseline="middle"
+                                class="element-label lane-label"
+                                transform={el.poolLabelTransform}
+                            >
+                                {el.name}
+                            </text>
+                            
+                            <!-- Resize handles (shown when selected) -->
+                            <template if:true={el.showResizeHandles}>
+                                <!-- North (top center) -->
+                                <rect x={el.resizeHandleNX} y={el.resizeHandleNY} width="8" height="8" 
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-n"
+                                      data-elementid={el.id} data-handle="n" onmousedown={handleResizeHandleMouseDown}></rect>
+                                <!-- South (bottom center) -->
+                                <rect x={el.resizeHandleSX} y={el.resizeHandleSY} width="8" height="8"
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-s"
+                                      data-elementid={el.id} data-handle="s" onmousedown={handleResizeHandleMouseDown}></rect>
+                                <!-- East (right center) -->
+                                <rect x={el.resizeHandleEX} y={el.resizeHandleEY} width="8" height="8"
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-e"
+                                      data-elementid={el.id} data-handle="e" onmousedown={handleResizeHandleMouseDown}></rect>
+                                <!-- West (left center) -->
+                                <rect x={el.resizeHandleWX} y={el.resizeHandleWY} width="8" height="8"
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-w"
+                                      data-elementid={el.id} data-handle="w" onmousedown={handleResizeHandleMouseDown}></rect>
+                                <!-- Northeast (top right corner) -->
+                                <rect x={el.resizeHandleNEX} y={el.resizeHandleNEY} width="8" height="8"
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-ne"
+                                      data-elementid={el.id} data-handle="ne" onmousedown={handleResizeHandleMouseDown}></rect>
+                                <!-- Northwest (top left corner) -->
+                                <rect x={el.resizeHandleNWX} y={el.resizeHandleNWY} width="8" height="8"
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-nw"
+                                      data-elementid={el.id} data-handle="nw" onmousedown={handleResizeHandleMouseDown}></rect>
+                                <!-- Southeast (bottom right corner) -->
+                                <rect x={el.resizeHandleSEX} y={el.resizeHandleSEY} width="8" height="8"
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-se"
+                                      data-elementid={el.id} data-handle="se" onmousedown={handleResizeHandleMouseDown}></rect>
+                                <!-- Southwest (bottom left corner) -->
+                                <rect x={el.resizeHandleSWX} y={el.resizeHandleSWY} width="8" height="8"
+                                      fill="#3182CE" stroke="#FFFFFF" stroke-width="1" class="resize-handle resize-sw"
+                                      data-elementid={el.id} data-handle="sw" onmousedown={handleResizeHandleMouseDown}></rect>
                             </template>
                         </template>
                         

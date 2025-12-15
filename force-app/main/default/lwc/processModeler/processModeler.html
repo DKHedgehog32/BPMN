@@ -77,7 +77,9 @@
                 <!-- Left Panel: Palette (hide in read-only mode) -->
                 <template if:false={isReadOnly}>
                     <div class="palette-wrapper">
-                        <c-process-palette></c-process-palette>
+                        <c-process-palette
+                            onimportclick={handleImportFromSalesforce}
+                        ></c-process-palette>
                     </div>
                 </template>
                 
@@ -88,6 +90,7 @@
                         read-only={isReadOnly}
                         oncanvaschange={handleCanvasChange}
                         onselectionchange={handleSelectionChange}
+                        onflowimported={handleFlowImported}
                     ></c-process-canvas>
                 </div>
                 
@@ -97,6 +100,7 @@
                         selected-element={selectedElement}
                         selected-connection={selectedConnection}
                         score-data={scoreData}
+                        imported-flow-info={importedFlowInfo}
                         read-only={isReadOnly}
                         onpropertychange={handlePropertyChange}
                         ondeleteelement={handleDeleteElement}
@@ -147,6 +151,176 @@
                 </div>
             </section>
             <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+        
+        <!-- Import Source Selection Modal -->
+        <template if:true={showImportModal}>
+            <template if:false={showImportSourceSelected}>
+                <!-- Step 1: Choose Import Source -->
+                <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open">
+                    <div class="slds-modal__container">
+                        <!-- Dark blue header -->
+                        <div class="import-modal-header">
+                            <button class="import-modal-close" onclick={handleImportModalClose}>
+                                <lightning-icon icon-name="utility:close" size="small"></lightning-icon>
+                            </button>
+                            <div class="import-modal-title">
+                                <lightning-icon icon-name="utility:download" size="small"></lightning-icon>
+                                <h2>Import Process</h2>
+                            </div>
+                        </div>
+                        <div class="slds-modal__content slds-p-around_large">
+                            <p class="slds-text-body_regular slds-m-bottom_large">Choose how you want to import your process:</p>
+                            
+                            <div class="import-source-options">
+                                <!-- Option 1: Import from XML File -->
+                                <div class="import-source-card" onclick={handleSelectXmlImport}>
+                                    <div class="import-source-icon">
+                                        <lightning-icon icon-name="doctype:xml" size="large"></lightning-icon>
+                                    </div>
+                                    <div class="import-source-content">
+                                        <h3 class="import-source-title">Import from XML File</h3>
+                                        <p class="import-source-description">Upload a Salesforce Flow XML file (.flow-meta.xml) from your local computer</p>
+                                    </div>
+                                    <div class="import-source-arrow">
+                                        <lightning-icon icon-name="utility:chevronright" size="small"></lightning-icon>
+                                    </div>
+                                </div>
+                                
+                                <!-- Option 2: Import from Salesforce Org -->
+                                <div class="import-source-card" onclick={handleSelectOrgImport}>
+                                    <div class="import-source-icon">
+                                        <lightning-icon icon-name="utility:salesforce1" size="large"></lightning-icon>
+                                    </div>
+                                    <div class="import-source-content">
+                                        <h3 class="import-source-title">Import from Salesforce Org</h3>
+                                        <p class="import-source-description">Browse and select Flows, Apex classes, or LWC components from your connected org</p>
+                                    </div>
+                                    <div class="import-source-arrow">
+                                        <lightning-icon icon-name="utility:chevronright" size="small"></lightning-icon>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <footer class="import-modal-footer">
+                            <button class="footer-button footer-button-neutral" onclick={handleImportModalClose}>Cancel</button>
+                        </footer>
+                    </div>
+                </section>
+                <div class="slds-backdrop slds-backdrop_open"></div>
+            </template>
+            
+            <!-- Step 2a: XML File Upload -->
+            <template if:true={showXmlImport}>
+                <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-fade-in-open">
+                    <div class="slds-modal__container">
+                        <!-- Dark blue header matching other modals -->
+                        <div class="import-modal-header">
+                            <button class="import-modal-close" onclick={handleImportModalClose}>
+                                <lightning-icon icon-name="utility:close" size="small"></lightning-icon>
+                            </button>
+                            <div class="import-modal-title">
+                                <lightning-icon icon-name="doctype:xml" size="small"></lightning-icon>
+                                <h2>Import from XML File</h2>
+                            </div>
+                        </div>
+                        <div class="slds-modal__content slds-p-around_large">
+                            <!-- Back button - styled consistently -->
+                            <button class="back-button" onclick={handleBackToSourceSelection}>
+                                <lightning-icon icon-name="utility:chevronleft" size="xx-small"></lightning-icon>
+                                <span>Back to import options</span>
+                            </button>
+                            
+                            <!-- File Upload Area -->
+                            <div class={xmlUploadAreaClass} 
+                                 ondragover={handleXmlDragOver} 
+                                 ondragleave={handleXmlDragLeave}
+                                 ondrop={handleXmlDrop}>
+                                <template if:false={xmlFileSelected}>
+                                    <div class="xml-upload-content">
+                                        <lightning-icon icon-name="utility:upload" size="large" class="xml-upload-icon"></lightning-icon>
+                                        <p class="xml-upload-text">Drag and drop your Flow XML file here</p>
+                                        <p class="xml-upload-subtext">or</p>
+                                        <label class="slds-button slds-button_neutral xml-upload-button">
+                                            Browse Files
+                                            <input type="file" accept=".xml,.flow-meta.xml" onchange={handleXmlFileSelect} class="slds-assistive-text" />
+                                        </label>
+                                        <p class="xml-upload-hint">Supported: .xml, .flow-meta.xml</p>
+                                    </div>
+                                </template>
+                                <template if:true={xmlFileSelected}>
+                                    <div class="xml-file-selected">
+                                        <lightning-icon icon-name="doctype:xml" size="large"></lightning-icon>
+                                        <div class="xml-file-info">
+                                            <p class="xml-file-name">{xmlFileName}</p>
+                                            <p class="xml-file-size">{xmlFileSize}</p>
+                                        </div>
+                                        <button class="slds-button slds-button_icon slds-button_icon-border" onclick={handleXmlFileRemove} title="Remove file">
+                                            <lightning-icon icon-name="utility:close" size="x-small"></lightning-icon>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                            
+                            <!-- Parse Error Message -->
+                            <template if:true={xmlParseError}>
+                                <div class="slds-notify slds-notify_alert slds-alert_error slds-m-top_medium" role="alert">
+                                    <lightning-icon icon-name="utility:error" size="x-small" variant="inverse"></lightning-icon>
+                                    <span class="slds-m-left_x-small">{xmlParseError}</span>
+                                </div>
+                            </template>
+                            
+                            <!-- Preview (after file is parsed) -->
+                            <template if:true={xmlFlowPreview}>
+                                <div class="xml-preview slds-m-top_large">
+                                    <h3 class="slds-text-heading_small slds-m-bottom_small">Flow Preview</h3>
+                                    <div class="xml-preview-card">
+                                        <div class="xml-preview-row">
+                                            <span class="xml-preview-label">Label:</span>
+                                            <span class="xml-preview-value">{xmlFlowPreview.label}</span>
+                                        </div>
+                                        <div class="xml-preview-row">
+                                            <span class="xml-preview-label">API Name:</span>
+                                            <span class="xml-preview-value">{xmlFlowPreview.apiName}</span>
+                                        </div>
+                                        <div class="xml-preview-row">
+                                            <span class="xml-preview-label">Process Type:</span>
+                                            <span class="xml-preview-value">{xmlFlowPreview.processType}</span>
+                                        </div>
+                                        <div class="xml-preview-row">
+                                            <span class="xml-preview-label">Elements:</span>
+                                            <span class="xml-preview-value">{xmlFlowPreview.elementCount} elements</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        <footer class="import-modal-footer">
+                            <button class="footer-button footer-button-neutral" onclick={handleImportModalClose}>Cancel</button>
+                            <button class="footer-button footer-button-brand" onclick={handleXmlImport} disabled={xmlImportDisabled}>
+                                <lightning-icon icon-name="utility:download" size="x-small"></lightning-icon>
+                                <span>Import Flow</span>
+                            </button>
+                        </footer>
+                    </div>
+                </section>
+                <div class="slds-backdrop slds-backdrop_open"></div>
+            </template>
+            
+            <!-- Step 2b: Salesforce Org Browser - Uses the existing selector component -->
+            <template if:true={showOrgImport}>
+                <section role="dialog" tabindex="-1" aria-modal="true" class="slds-modal slds-modal_large slds-fade-in-open">
+                    <div class="slds-modal__container">
+                        <div class="slds-modal__content slds-p-around_none" style="height: 80vh; overflow: hidden;">
+                            <c-salesforce-metadata-selector
+                                onconvert={handleImportConvert}
+                                oncancel={handleOrgImportCancel}
+                            ></c-salesforce-metadata-selector>
+                        </div>
+                    </div>
+                </section>
+                <div class="slds-backdrop slds-backdrop_open"></div>
+            </template>
         </template>
     </div>
 </template>

@@ -185,7 +185,229 @@ const ELEMENT_TYPES = {
         width: 200, height: 150, shape: 'rect', 
         fill: 'none', stroke: '#718096', strokeWidth: 1.5, dashed: true, rx: 12,
         isGateway: false, cfcFormula: null
+    },
+    
+    // =========================================================================
+    // ADDITIONAL EVENT TYPES - For Salesforce Flow Mapping
+    // =========================================================================
+    
+    // Message Events (Record-Triggered Flows)
+    MessageIntermediateCatchEvent: { 
+        width: 50, height: 50, shape: 'circle', 
+        fill: '#FFFFFF', stroke: '#2D3748', strokeWidth: 2, double: true, icon: 'envelope',
+        isGateway: false, cfcFormula: null,
+        eventType: 'message', eventPosition: 'intermediate',
+        salesforceMapping: 'FlowWait'
+    },
+    MessageEndEvent: { 
+        width: 50, height: 50, shape: 'circle', 
+        fill: '#FED7D7', stroke: '#2D3748', strokeWidth: 3, icon: 'envelope',
+        isGateway: false, cfcFormula: null,
+        eventType: 'message', eventPosition: 'end',
+        salesforceMapping: 'FlowActionCall'
+    },
+    
+    // Timer Events (Scheduled Flows, Wait Elements)
+    TimerIntermediateEvent: { 
+        width: 50, height: 50, shape: 'circle', 
+        fill: '#FFFFFF', stroke: '#2D3748', strokeWidth: 2, double: true, icon: 'timer',
+        isGateway: false, cfcFormula: null,
+        eventType: 'timer', eventPosition: 'intermediate',
+        salesforceMapping: 'FlowWait'
+    },
+    
+    // Signal Events (Platform Events)
+    SignalStartEvent: { 
+        width: 50, height: 50, shape: 'circle', 
+        fill: '#C6F6D5', stroke: '#2D3748', strokeWidth: 2, icon: 'signal',
+        isGateway: false, cfcFormula: null,
+        eventType: 'signal', eventPosition: 'start',
+        salesforceMapping: { triggerType: 'PlatformEvent' }
+    },
+    SignalIntermediateEvent: { 
+        width: 50, height: 50, shape: 'circle', 
+        fill: '#FFFFFF', stroke: '#2D3748', strokeWidth: 2, double: true, icon: 'signal',
+        isGateway: false, cfcFormula: null,
+        eventType: 'signal', eventPosition: 'intermediate'
+    },
+    SignalEndEvent: { 
+        width: 50, height: 50, shape: 'circle', 
+        fill: '#FED7D7', stroke: '#2D3748', strokeWidth: 3, icon: 'signal',
+        isGateway: false, cfcFormula: null,
+        eventType: 'signal', eventPosition: 'end',
+        salesforceMapping: 'FlowActionCall'
+    },
+    
+    // Error Events (Fault Paths)
+    ErrorEndEvent: { 
+        width: 50, height: 50, shape: 'circle', 
+        fill: '#FED7D7', stroke: '#2D3748', strokeWidth: 3, icon: 'error',
+        isGateway: false, cfcFormula: null,
+        eventType: 'error', eventPosition: 'end',
+        salesforceMapping: 'FlowCustomError'
+    },
+    ErrorBoundaryEvent: { 
+        width: 36, height: 36, shape: 'circle', 
+        fill: '#FFFFFF', stroke: '#C53030', strokeWidth: 2, double: true, icon: 'error',
+        isGateway: false, cfcFormula: null,
+        eventType: 'error', eventPosition: 'boundary', attachable: true,
+        salesforceMapping: 'FaultConnector'
+    },
+    
+    // Terminate Event
+    TerminateEndEvent: { 
+        width: 50, height: 50, shape: 'circle', 
+        fill: '#FED7D7', stroke: '#2D3748', strokeWidth: 3, icon: 'terminate',
+        isGateway: false, cfcFormula: null,
+        eventType: 'terminate', eventPosition: 'end'
+    },
+    
+    // =========================================================================
+    // ADDITIONAL GATEWAY TYPES
+    // =========================================================================
+    
+    ComplexGateway: { 
+        width: 50, height: 50, shape: 'diamond', 
+        fill: '#FEFCBF', stroke: '#2D3748', strokeWidth: 2, icon: 'asterisk',
+        isGateway: true,
+        cfcType: 'COMPLEX',
+        cfcFormula: (fanout) => Math.pow(2, fanout) - 1,
+        complexityDescription: 'Complex routing with custom conditions - exponential complexity',
+        isHighRisk: true,
+        salesforceMapping: 'FlowDecision'
+    },
+    
+    // =========================================================================
+    // POOL & LANE (Container Elements for Orchestration)
+    // Supports horizontal (default) and vertical orientation
+    // Resizable with minimum dimensions enforced
+    // =========================================================================
+    
+    Pool: { 
+        width: 800, height: 300, 
+        minWidth: 300, minHeight: 150,
+        maxWidth: 2000, maxHeight: 1500,
+        shape: 'pool', 
+        fill: '#FFFFFF', stroke: '#2D3748', strokeWidth: 2,
+        headerSize: 30, // Width for horizontal, Height for vertical
+        isContainer: true, isResizable: true,
+        isGateway: false, cfcFormula: null,
+        salesforceMapping: 'FlowOrchestration'
+    },
+    Lane: { 
+        width: 770, height: 150, 
+        minWidth: 300, minHeight: 80,
+        maxWidth: 2000, maxHeight: 800,
+        shape: 'lane', 
+        fill: '#F7FAFC', stroke: '#CBD5E0', strokeWidth: 1,
+        headerSize: 30,
+        isContainer: true, isResizable: true,
+        isGateway: false, cfcFormula: null,
+        parentType: 'Pool',
+        salesforceMapping: 'FlowOrchestratedStage'
+    },
+    
+    // =========================================================================
+    // SALESFORCE-SPECIFIC TASK TYPES
+    // =========================================================================
+    
+    // Record Operations (maps to Salesforce record elements)
+    RecordCreateTask: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#C6F6D5', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'create',
+        isGateway: false, cfcFormula: null,
+        salesforceMapping: 'FlowRecordCreate'
+    },
+    RecordUpdateTask: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'update',
+        isGateway: false, cfcFormula: null,
+        salesforceMapping: 'FlowRecordUpdate'
+    },
+    RecordDeleteTask: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#FED7D7', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'delete',
+        isGateway: false, cfcFormula: null,
+        salesforceMapping: 'FlowRecordDelete'
+    },
+    RecordLookupTask: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#E9D8FD', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'lookup',
+        isGateway: false, cfcFormula: null,
+        salesforceMapping: 'FlowRecordLookup'
+    },
+    
+    // Assignment (Variable manipulation)
+    AssignmentTask: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#FEEBC8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'assignment',
+        isGateway: false, cfcFormula: null,
+        salesforceMapping: 'FlowAssignment'
+    },
+    
+    // Loop (Iteration)
+    LoopTask: { 
+        width: 160, height: 100, shape: 'rect', 
+        fill: '#E9D8FD', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'loop', dashed: true,
+        isGateway: false, cfcFormula: null,
+        incrementsNesting: true,
+        salesforceMapping: 'FlowLoop'
+    },
+    
+    // Action Call (Invocable Actions)
+    ActionCallTask: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#FED7E2', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'action',
+        isGateway: false, cfcFormula: null,
+        salesforceMapping: 'FlowActionCall'
+    },
+    
+    // Screen (User Interaction)
+    ScreenTask: { 
+        width: 140, height: 70, shape: 'rect', 
+        fill: '#BEE3F8', stroke: '#2D3748', strokeWidth: 2, rx: 12, icon: 'screen',
+        isGateway: false, cfcFormula: null,
+        salesforceMapping: 'FlowScreen'
+    },
+    
+    // Wait (Pause/Resume)
+    WaitEvent: { 
+        width: 50, height: 50, shape: 'circle', 
+        fill: '#FEEBC8', stroke: '#2D3748', strokeWidth: 2, double: true, icon: 'pause',
+        isGateway: false, cfcFormula: null,
+        eventType: 'timer', eventPosition: 'intermediate',
+        salesforceMapping: 'FlowWait'
     }
+};
+
+// =========================================================================
+// SALESFORCE FLOW TO BPMN ELEMENT MAPPING
+// =========================================================================
+const FLOW_ELEMENT_MAP = {
+    // Start types based on trigger
+    'start': 'StartEvent',
+    'start_RecordBeforeSave': 'MessageStartEvent',
+    'start_RecordAfterSave': 'MessageStartEvent',
+    'start_Scheduled': 'TimerStartEvent',
+    'start_PlatformEvent': 'SignalStartEvent',
+    
+    // Flow Elements
+    'FlowScreen': 'ScreenTask',
+    'FlowDecision': 'ExclusiveGateway',
+    'FlowRecordCreate': 'RecordCreateTask',
+    'FlowRecordUpdate': 'RecordUpdateTask',
+    'FlowRecordDelete': 'RecordDeleteTask',
+    'FlowRecordLookup': 'RecordLookupTask',
+    'FlowAssignment': 'AssignmentTask',
+    'FlowActionCall': 'ActionCallTask',
+    'FlowSubflow': 'CallActivity',
+    'FlowLoop': 'LoopTask',
+    'FlowWait': 'WaitEvent',
+    'FlowCustomError': 'ErrorEndEvent',
+    'FlowOrchestratedStage': 'Lane',
+    
+    // Fallbacks
+    'default': 'ServiceTask'
 };
 
 // Connection type styles
@@ -230,11 +452,22 @@ export default class ProcessCanvas extends LightningElement {
     }
     
     @api
-    addElement(elementType, x, y, name) {
+    addElement(elementType, x, y, name, salesforceMetadata = null, options = {}) {
         const typeConfig = ELEMENT_TYPES[elementType];
         if (!typeConfig) {
             console.error('Unknown element type:', elementType);
             return null;
+        }
+        
+        // Handle orientation for Pool/Lane (default: horizontal)
+        const orientation = options.orientation || 'horizontal';
+        let width = typeConfig.width;
+        let height = typeConfig.height;
+        
+        // Swap dimensions for vertical orientation
+        if ((typeConfig.shape === 'pool' || typeConfig.shape === 'lane') && orientation === 'vertical') {
+            width = typeConfig.height;
+            height = typeConfig.width;
         }
         
         const element = {
@@ -243,12 +476,37 @@ export default class ProcessCanvas extends LightningElement {
             name: name || this.getDefaultName(elementType),
             x: x,
             y: y,
-            width: typeConfig.width,
-            height: typeConfig.height,
+            width: width,
+            height: height,
             description: '',
             assignedRole: '',
             durationHours: null,
-            slaHours: null
+            slaHours: null,
+            lane: '', // Parent lane ID if inside a lane
+            
+            // Pool/Lane specific properties
+            orientation: (typeConfig.shape === 'pool' || typeConfig.shape === 'lane') ? orientation : null,
+            
+            // Salesforce metadata (populated during import or manual entry)
+            salesforceMetadata: salesforceMetadata || {
+                apiName: '',
+                flowElementType: '',
+                actionType: '',
+                actionName: '',
+                triggerType: '',
+                triggerObject: '',
+                objectApiName: '',
+                recordFilters: [],
+                inputAssignments: [],
+                outputAssignments: [],
+                processType: '',
+                apexClassName: '',
+                apexMethodName: '',
+                lwcComponentName: '',
+                isImported: false,
+                sourceFile: '',
+                faultConnector: null
+            }
         };
         
         this.elements = [...this.elements, element];
@@ -299,6 +557,669 @@ export default class ProcessCanvas extends LightningElement {
     zoomFit() {
         // TODO: Calculate zoom to fit all elements
         this.resetZoom();
+    }
+    
+    // =========================================================================
+    // SALESFORCE IMPORT/EXPORT METHODS
+    // =========================================================================
+    
+    /**
+     * Import Salesforce Flow metadata and convert to BPMN elements
+     * @param {Object} flowData - The Flow metadata from Tooling API (JSON format)
+     * @param {Object} options - Import options { clearCanvas: boolean, autoLayout: boolean }
+     * @returns {Object} { elements: [], connections: [], metadata: {} }
+     */
+    @api
+    importFromSalesforce(flowData, options = { clearCanvas: true, autoLayout: true }) {
+        const result = {
+            elements: [],
+            connections: [],
+            metadata: {
+                apiName: flowData.apiName || flowData.fullName || '',
+                label: flowData.label || '',
+                processType: flowData.processType || '',
+                triggerType: flowData.start?.triggerType || '',
+                triggerObject: flowData.start?.object || ''
+            }
+        };
+        
+        // Store imported flow metadata for display
+        this.importedFlowName = flowData.apiName || flowData.fullName || '';
+        this.importedFlowLabel = flowData.label || flowData.apiName || '';
+        this.importedFlowType = flowData.processType || '';
+        
+        // Clear canvas if requested
+        if (options.clearCanvas) {
+            this.elements = [];
+            this.connections = [];
+        }
+        
+        // Track element name to ID mapping for connections
+        const elementNameToId = new Map();
+        
+        // Starting position for layout
+        let currentX = 100;
+        let currentY = 100;
+        const HORIZONTAL_SPACING = 180;
+        const VERTICAL_SPACING = 120;
+        
+        // 1. Create Start Event based on trigger type
+        const startType = this.mapFlowStartType(flowData.start?.triggerType);
+        const startId = this.addElement(startType, currentX, currentY, 'Start', {
+            apiName: 'start',
+            flowElementType: 'FlowStart',
+            triggerType: flowData.start?.triggerType || '',
+            triggerObject: flowData.start?.object || '',
+            processType: flowData.processType || '',
+            isImported: true,
+            sourceFile: flowData.apiName || ''
+        });
+        elementNameToId.set('start', startId);
+        if (flowData.start?.connector?.targetReference) {
+            elementNameToId.set('__startTarget__', flowData.start.connector.targetReference);
+        }
+        result.elements.push(startId);
+        
+        currentX += HORIZONTAL_SPACING;
+        
+        // 2. Process all Flow elements
+        const flowElementTypes = [
+            { key: 'screens', type: 'FlowScreen' },
+            { key: 'decisions', type: 'FlowDecision' },
+            { key: 'recordCreates', type: 'FlowRecordCreate' },
+            { key: 'recordUpdates', type: 'FlowRecordUpdate' },
+            { key: 'recordDeletes', type: 'FlowRecordDelete' },
+            { key: 'recordLookups', type: 'FlowRecordLookup' },
+            { key: 'assignments', type: 'FlowAssignment' },
+            { key: 'actionCalls', type: 'FlowActionCall' },
+            { key: 'subflows', type: 'FlowSubflow' },
+            { key: 'loops', type: 'FlowLoop' },
+            { key: 'waits', type: 'FlowWait' }
+        ];
+        
+        flowElementTypes.forEach(({ key, type }) => {
+            const elements = flowData[key];
+            if (!elements) return;
+            
+            // Handle both array and single object
+            const elementArray = Array.isArray(elements) ? elements : [elements];
+            
+            elementArray.forEach((flowEl, index) => {
+                if (!flowEl || !flowEl.name) return;
+                
+                const bpmnType = FLOW_ELEMENT_MAP[type] || 'ServiceTask';
+                
+                // Calculate position (simple grid layout)
+                const row = Math.floor((result.elements.length - 1) / 5);
+                const col = (result.elements.length - 1) % 5;
+                const posX = currentX + (col * HORIZONTAL_SPACING);
+                const posY = currentY + (row * VERTICAL_SPACING);
+                
+                // Build Salesforce metadata
+                const sfMetadata = {
+                    apiName: flowEl.name,
+                    flowElementType: type,
+                    actionType: flowEl.actionType || '',
+                    actionName: flowEl.actionName || '',
+                    objectApiName: flowEl.object || flowEl.objectApiName || '',
+                    processType: flowData.processType || '',
+                    isImported: true,
+                    sourceFile: flowData.apiName || '',
+                    faultConnector: flowEl.faultConnector?.targetReference || null
+                };
+                
+                // Handle specific element types
+                if (type === 'FlowActionCall' && flowEl.actionType === 'apex') {
+                    sfMetadata.apexClassName = flowEl.actionName || '';
+                }
+                
+                if (type === 'FlowScreen' && flowEl.fields) {
+                    // Check for LWC components in screen fields
+                    const lwcField = (Array.isArray(flowEl.fields) ? flowEl.fields : [flowEl.fields])
+                        .find(f => f.extensionName);
+                    if (lwcField) {
+                        sfMetadata.lwcComponentName = lwcField.extensionName;
+                    }
+                }
+                
+                const elementId = this.addElement(
+                    bpmnType, 
+                    posX, 
+                    posY, 
+                    flowEl.label || flowEl.name,
+                    sfMetadata
+                );
+                
+                elementNameToId.set(flowEl.name, elementId);
+                result.elements.push(elementId);
+                
+                // Store connector targets for later connection creation
+                if (flowEl.connector?.targetReference) {
+                    this._pendingConnections = this._pendingConnections || [];
+                    this._pendingConnections.push({
+                        sourceId: elementId,
+                        targetName: flowEl.connector.targetReference,
+                        type: 'SequenceFlow'
+                    });
+                }
+                
+                // Handle decision outcomes (multiple connectors)
+                if (type === 'FlowDecision' && flowEl.rules) {
+                    const rules = Array.isArray(flowEl.rules) ? flowEl.rules : [flowEl.rules];
+                    rules.forEach(rule => {
+                        if (rule.connector?.targetReference) {
+                            this._pendingConnections = this._pendingConnections || [];
+                            this._pendingConnections.push({
+                                sourceId: elementId,
+                                targetName: rule.connector.targetReference,
+                                type: 'ConditionalFlow',
+                                label: rule.label || rule.name
+                            });
+                        }
+                    });
+                    // Default outcome
+                    if (flowEl.defaultConnector?.targetReference) {
+                        this._pendingConnections = this._pendingConnections || [];
+                        this._pendingConnections.push({
+                            sourceId: elementId,
+                            targetName: flowEl.defaultConnector.targetReference,
+                            type: 'DefaultFlow',
+                            label: 'Default'
+                        });
+                    }
+                }
+                
+                // Handle fault connectors
+                if (flowEl.faultConnector?.targetReference) {
+                    this._pendingConnections = this._pendingConnections || [];
+                    this._pendingConnections.push({
+                        sourceId: elementId,
+                        targetName: flowEl.faultConnector.targetReference,
+                        type: 'SequenceFlow',
+                        isFault: true
+                    });
+                }
+            });
+        });
+        
+        // 3. Create End Event if needed
+        const endId = this.addElement('EndEvent', currentX + (5 * HORIZONTAL_SPACING), currentY, 'End', {
+            apiName: 'end',
+            flowElementType: 'FlowEnd',
+            isImported: true,
+            sourceFile: flowData.apiName || ''
+        });
+        elementNameToId.set('end', endId);
+        result.elements.push(endId);
+        
+        // 4. Create connections from pending list
+        if (this._pendingConnections) {
+            // Add start connection
+            const startTargetName = elementNameToId.get('__startTarget__');
+            if (startTargetName) {
+                const targetId = elementNameToId.get(startTargetName);
+                if (targetId) {
+                    this.addConnection(startId, targetId, 'SequenceFlow');
+                    result.connections.push({ sourceId: startId, targetId });
+                }
+            }
+            
+            // Add all other connections
+            this._pendingConnections.forEach(pending => {
+                const targetId = elementNameToId.get(pending.targetName);
+                if (targetId) {
+                    this.addConnection(pending.sourceId, targetId, pending.type || 'SequenceFlow');
+                    result.connections.push({
+                        sourceId: pending.sourceId,
+                        targetId,
+                        type: pending.type,
+                        label: pending.label
+                    });
+                }
+            });
+            
+            // Clear pending connections
+            this._pendingConnections = [];
+        }
+        
+        // 4.5 Connect terminal elements to End event
+        // Find elements with no outgoing connections (terminal nodes)
+        // Build a fresh set from the current connections
+        const elementsWithOutgoing = new Set();
+        this.connections.forEach(conn => {
+            elementsWithOutgoing.add(conn.sourceId);
+        });
+        
+        // Debug: Log elements without outgoing connections
+        console.log('Elements with outgoing connections:', elementsWithOutgoing.size);
+        
+        // Get all imported elements except Start and End
+        const importedElements = this.elements.filter(el => 
+            el.isImported && 
+            el.id !== startId && 
+            el.id !== endId &&
+            !el.type.includes('Start') &&
+            !el.type.includes('End')
+        );
+        
+        // Connect terminal elements to End
+        let terminalCount = 0;
+        importedElements.forEach(el => {
+            if (!elementsWithOutgoing.has(el.id)) {
+                // This element has no outgoing connections - connect to End
+                console.log('Connecting terminal element to End:', el.name, el.type);
+                this.addConnection(el.id, endId, 'SequenceFlow');
+                result.connections.push({
+                    sourceId: el.id,
+                    targetId: endId
+                });
+                terminalCount++;
+            }
+        });
+        
+        console.log('Connected', terminalCount, 'terminal elements to End');
+        
+        // If no terminal elements were found, the flow might be a loop or have all paths defined
+        // In that case, find the last element in the flow and connect it to End if not already connected
+        if (terminalCount === 0 && !elementsWithOutgoing.has(endId)) {
+            // Find the element that appears last in the import order
+            const lastImportedElement = importedElements[importedElements.length - 1];
+            if (lastImportedElement && !elementsWithOutgoing.has(lastImportedElement.id)) {
+                console.log('No terminal elements, connecting last element:', lastImportedElement.name);
+                this.addConnection(lastImportedElement.id, endId, 'SequenceFlow');
+                result.connections.push({
+                    sourceId: lastImportedElement.id,
+                    targetId: endId
+                });
+            }
+        }
+        
+        // 5. Auto-layout if requested
+        if (options.autoLayout) {
+            this.autoLayoutElements();
+        }
+        
+        // 6. Recalculate process quality score
+        this.calculateProcessScore();
+        
+        // 7. Dispatch event
+        this.dispatchEvent(new CustomEvent('flowimported', {
+            detail: {
+                elementCount: result.elements.length,
+                connectionCount: result.connections.length,
+                metadata: result.metadata
+            }
+        }));
+        
+        return result;
+    }
+    
+    /**
+     * Map Flow trigger type to BPMN Start Event type
+     */
+    mapFlowStartType(triggerType) {
+        const mapping = {
+            'RecordBeforeSave': 'MessageStartEvent',
+            'RecordAfterSave': 'MessageStartEvent',
+            'Scheduled': 'TimerStartEvent',
+            'PlatformEvent': 'SignalStartEvent'
+        };
+        return mapping[triggerType] || 'StartEvent';
+    }
+    
+    /**
+     * Improved auto-layout algorithm for imported elements
+     * Uses branch-aware positioning to prevent overlaps
+     * 
+     * KEY IMPROVEMENTS:
+     * - Tracks branch paths from each gateway
+     * - Assigns unique vertical lanes to each branch
+     * - Handles merge points properly
+     * - Increases spacing for complex flows
+     */
+    autoLayoutElements() {
+        if (this.elements.length === 0) return;
+        
+        // =====================================================================
+        // CONFIGURATION
+        // =====================================================================
+        const HORIZONTAL_SPACING = 200;  // Space between columns
+        const VERTICAL_SPACING = 100;    // Base space between rows
+        const BRANCH_SPACING = 120;      // Extra space for branches
+        const START_X = 100;
+        const START_Y = 100;
+        const MIN_ELEMENT_WIDTH = 140;
+        
+        // =====================================================================
+        // BUILD GRAPH STRUCTURES
+        // =====================================================================
+        const outgoingMap = new Map(); // elementId -> [targetIds]
+        const incomingMap = new Map(); // elementId -> [sourceIds]
+        const elementMap = new Map();  // elementId -> element
+        
+        this.elements.forEach(el => {
+            elementMap.set(el.id, el);
+            outgoingMap.set(el.id, []);
+            incomingMap.set(el.id, []);
+        });
+        
+        this.connections.forEach(conn => {
+            if (outgoingMap.has(conn.sourceId)) {
+                outgoingMap.get(conn.sourceId).push(conn.targetId);
+            }
+            if (incomingMap.has(conn.targetId)) {
+                incomingMap.get(conn.targetId).push(conn.sourceId);
+            }
+        });
+        
+        // =====================================================================
+        // FIND START ELEMENTS
+        // =====================================================================
+        let startElements = this.elements.filter(el => 
+            el.type === 'StartEvent' || 
+            el.type === 'TimerStartEvent' || 
+            el.type === 'MessageStartEvent' ||
+            el.type === 'SignalStartEvent'
+        );
+        
+        if (startElements.length === 0) {
+            startElements = this.elements.filter(el => 
+                incomingMap.get(el.id)?.length === 0
+            );
+        }
+        
+        if (startElements.length === 0 && this.elements.length > 0) {
+            startElements = [this.elements[0]];
+        }
+        
+        // =====================================================================
+        // PHASE 1: ASSIGN LEVELS (X positions) using BFS
+        // =====================================================================
+        const levels = new Map();
+        const visited = new Set();
+        const queue = [];
+        
+        startElements.forEach(el => {
+            queue.push({ id: el.id, level: 0 });
+            levels.set(el.id, 0);
+        });
+        
+        while (queue.length > 0) {
+            const { id, level } = queue.shift();
+            
+            if (visited.has(id)) continue;
+            visited.add(id);
+            
+            const targets = outgoingMap.get(id) || [];
+            targets.forEach(targetId => {
+                const currentLevel = levels.get(targetId);
+                const newLevel = level + 1;
+                
+                // Use maximum level (ensures proper left-to-right ordering)
+                if (currentLevel === undefined || newLevel > currentLevel) {
+                    levels.set(targetId, newLevel);
+                }
+                
+                if (!visited.has(targetId)) {
+                    queue.push({ id: targetId, level: newLevel });
+                }
+            });
+        }
+        
+        // Handle disconnected elements
+        this.elements.forEach(el => {
+            if (!levels.has(el.id)) {
+                const maxLevel = Math.max(...levels.values(), 0);
+                levels.set(el.id, maxLevel + 1);
+            }
+        });
+        
+        // =====================================================================
+        // PHASE 2: GROUP BY LEVEL
+        // =====================================================================
+        const levelGroups = new Map();
+        levels.forEach((level, elId) => {
+            if (!levelGroups.has(level)) {
+                levelGroups.set(level, []);
+            }
+            levelGroups.get(level).push(elId);
+        });
+        
+        const sortedLevels = Array.from(levelGroups.keys()).sort((a, b) => a - b);
+        
+        // =====================================================================
+        // PHASE 3: ASSIGN BRANCH LANES (Y positions)
+        // Track which "lane" each element belongs to based on its branch path
+        // =====================================================================
+        const elementLanes = new Map(); // elementId -> lane number
+        const branchStack = []; // Stack of active branches
+        let nextLane = 0;
+        
+        // Process elements level by level
+        sortedLevels.forEach(level => {
+            const elementsAtLevel = levelGroups.get(level);
+            
+            elementsAtLevel.forEach(elId => {
+                const el = elementMap.get(elId);
+                const sources = incomingMap.get(elId) || [];
+                const targets = outgoingMap.get(elId) || [];
+                
+                if (sources.length === 0) {
+                    // Start element - assign to middle lane
+                    elementLanes.set(elId, nextLane++);
+                } else if (sources.length === 1) {
+                    // Single predecessor - inherit its lane
+                    const sourceLane = elementLanes.get(sources[0]);
+                    if (sourceLane !== undefined) {
+                        elementLanes.set(elId, sourceLane);
+                    } else {
+                        elementLanes.set(elId, nextLane++);
+                    }
+                } else {
+                    // Multiple predecessors (merge point) - use average lane
+                    let totalLane = 0;
+                    let count = 0;
+                    sources.forEach(srcId => {
+                        const lane = elementLanes.get(srcId);
+                        if (lane !== undefined) {
+                            totalLane += lane;
+                            count++;
+                        }
+                    });
+                    elementLanes.set(elId, count > 0 ? Math.round(totalLane / count) : nextLane++);
+                }
+                
+                // If this is a gateway with multiple outgoing, prepare branch lanes
+                if (targets.length > 1) {
+                    const baseLane = elementLanes.get(elId) || 0;
+                    const halfSpread = (targets.length - 1) / 2;
+                    
+                    targets.forEach((targetId, idx) => {
+                        // Spread branches evenly around the gateway's lane
+                        const branchLane = baseLane + (idx - halfSpread);
+                        if (!elementLanes.has(targetId)) {
+                            elementLanes.set(targetId, branchLane);
+                        }
+                    });
+                    
+                    // Update nextLane to account for new branches
+                    nextLane = Math.max(nextLane, baseLane + halfSpread + 1);
+                }
+            });
+        });
+        
+        // =====================================================================
+        // PHASE 4: NORMALIZE LANES (remove gaps, ensure positive)
+        // =====================================================================
+        const usedLanes = new Set(elementLanes.values());
+        const sortedLanes = Array.from(usedLanes).sort((a, b) => a - b);
+        const laneMapping = new Map();
+        sortedLanes.forEach((lane, idx) => {
+            laneMapping.set(lane, idx);
+        });
+        
+        elementLanes.forEach((lane, elId) => {
+            elementLanes.set(elId, laneMapping.get(lane) || 0);
+        });
+        
+        // =====================================================================
+        // PHASE 5: CALCULATE POSITIONS
+        // =====================================================================
+        const positions = new Map();
+        const maxLane = Math.max(...elementLanes.values(), 0);
+        const totalHeight = (maxLane + 1) * BRANCH_SPACING;
+        
+        this.elements.forEach(el => {
+            const level = levels.get(el.id) || 0;
+            const lane = elementLanes.get(el.id) || 0;
+            
+            positions.set(el.id, {
+                x: START_X + (level * HORIZONTAL_SPACING),
+                y: START_Y + (lane * BRANCH_SPACING)
+            });
+        });
+        
+        // =====================================================================
+        // PHASE 6: COLLISION DETECTION & RESOLUTION
+        // Check for overlapping elements and adjust
+        // =====================================================================
+        const ELEMENT_HEIGHT = 60;
+        const MIN_Y_GAP = 80;
+        
+        sortedLevels.forEach(level => {
+            const elementsAtLevel = levelGroups.get(level);
+            
+            // Sort by Y position
+            elementsAtLevel.sort((a, b) => {
+                const posA = positions.get(a);
+                const posB = positions.get(b);
+                return (posA?.y || 0) - (posB?.y || 0);
+            });
+            
+            // Resolve overlaps
+            for (let i = 1; i < elementsAtLevel.length; i++) {
+                const prevId = elementsAtLevel[i - 1];
+                const currId = elementsAtLevel[i];
+                const prevPos = positions.get(prevId);
+                const currPos = positions.get(currId);
+                
+                if (prevPos && currPos) {
+                    const minY = prevPos.y + ELEMENT_HEIGHT + MIN_Y_GAP;
+                    if (currPos.y < minY) {
+                        currPos.y = minY;
+                        positions.set(currId, currPos);
+                    }
+                }
+            }
+        });
+        
+        // =====================================================================
+        // PHASE 7: CENTER THE DIAGRAM
+        // =====================================================================
+        let minY = Infinity;
+        let maxY = -Infinity;
+        positions.forEach(pos => {
+            minY = Math.min(minY, pos.y);
+            maxY = Math.max(maxY, pos.y);
+        });
+        
+        const offsetY = START_Y - minY + 50; // Ensure minimum 50px from top
+        
+        // =====================================================================
+        // PHASE 8: APPLY POSITIONS
+        // =====================================================================
+        this.elements = this.elements.map(el => {
+            const pos = positions.get(el.id);
+            if (pos) {
+                // Also expand width for long labels
+                const labelLength = (el.name || '').length;
+                const neededWidth = Math.max(MIN_ELEMENT_WIDTH, Math.min(200, labelLength * 7));
+                const newWidth = (el.type !== 'StartEvent' && el.type !== 'EndEvent' && 
+                    !el.type?.includes('Gateway') && !el.type?.includes('Event'))
+                    ? Math.max(el.width || 0, neededWidth)
+                    : el.width;
+                
+                return {
+                    ...el,
+                    x: Math.max(50, pos.x),
+                    y: Math.max(50, pos.y + offsetY),
+                    width: newWidth || el.width
+                };
+            }
+            return el;
+        });
+    }
+    
+    /**
+     * Simple grid layout fallback when no start event exists
+     */
+    simpleGridLayout() {
+        const COLS = 4;
+        const HORIZONTAL_SPACING = 200;
+        const VERTICAL_SPACING = 120;
+        const START_X = 100;
+        const START_Y = 100;
+        
+        this.elements.forEach((el, index) => {
+            const col = index % COLS;
+            const row = Math.floor(index / COLS);
+            this.elements[index] = {
+                ...el,
+                x: START_X + (col * HORIZONTAL_SPACING),
+                y: START_Y + (row * VERTICAL_SPACING)
+            };
+        });
+        
+        this.elements = [...this.elements];
+    }
+    
+    /**
+     * Center the diagram vertically in the canvas
+     */
+    centerDiagramVertically() {
+        if (this.elements.length === 0) return;
+        
+        // Find Y bounds
+        let minY = Infinity;
+        let maxY = -Infinity;
+        
+        this.elements.forEach(el => {
+            const typeConfig = ELEMENT_TYPES[el.type];
+            const height = el.height || typeConfig?.height || 80;
+            minY = Math.min(minY, el.y);
+            maxY = Math.max(maxY, el.y + height);
+        });
+        
+        // Calculate offset to center around y=200 (reasonable default)
+        const diagramHeight = maxY - minY;
+        const targetCenterY = 200;
+        const currentCenterY = minY + (diagramHeight / 2);
+        const offsetY = targetCenterY - currentCenterY;
+        
+        // Only adjust if diagram is too high or too low
+        if (minY < 50 || minY > 300) {
+            this.elements.forEach((el, index) => {
+                this.elements[index] = {
+                    ...el,
+                    y: el.y + offsetY
+                };
+            });
+        }
+    }
+    
+    /**
+     * Add a connection between two elements
+     */
+    addConnection(sourceId, targetId, type = 'SequenceFlow') {
+        const connection = {
+            id: this.generateId('conn'),
+            sourceId,
+            targetId,
+            type,
+            label: ''
+        };
+        this.connections = [...this.connections, connection];
+        return connection.id;
     }
     
     @api
@@ -744,6 +1665,109 @@ export default class ProcessCanvas extends LightningElement {
             details: results,
             issues
         };
+    }
+    
+    /**
+     * Wrap label text to fit within element width
+     * Returns array of lines that fit within the given width
+     * 
+     * @param {String} text - The label text to wrap
+     * @param {Number} maxWidth - Maximum width in pixels
+     * @param {Boolean} isSmallElement - If true (circle/diamond), use shorter lines
+     * @returns {Array<String>} Array of text lines
+     */
+    wrapLabelText(text, maxWidth, isSmallElement = false) {
+        if (!text) return [''];
+        
+        // For small elements (circles, diamonds), don't wrap - just return as-is
+        // These labels appear BELOW the element, so they can be wider
+        if (isSmallElement) {
+            // Allow up to ~20 characters per line for external labels
+            const externalCharsPerLine = 25;
+            if (text.length <= externalCharsPerLine) {
+                return [text];
+            }
+            
+            // Split long text for external labels
+            const words = text.split(/[\s_]+/);
+            const lines = [];
+            let currentLine = '';
+            
+            words.forEach(word => {
+                // Handle CamelCase
+                const splitWords = word.replace(/([a-z])([A-Z])/g, '$1 $2').split(' ');
+                
+                splitWords.forEach(w => {
+                    if (currentLine.length === 0) {
+                        currentLine = w;
+                    } else if ((currentLine + ' ' + w).length <= externalCharsPerLine) {
+                        currentLine += ' ' + w;
+                    } else {
+                        lines.push(currentLine);
+                        currentLine = w;
+                    }
+                });
+            });
+            
+            if (currentLine.length > 0) {
+                lines.push(currentLine);
+            }
+            
+            // Limit to 2 lines for external labels
+            if (lines.length > 2) {
+                lines.length = 2;
+                lines[1] = lines[1].substring(0, externalCharsPerLine - 3) + '...';
+            }
+            
+            return lines.length > 0 ? lines : [''];
+        }
+        
+        // For tasks/rectangles - internal labels need to fit within element width
+        // Approximate characters per line based on ~7px per character average
+        const charsPerLine = Math.floor((maxWidth - 20) / 7);
+        
+        // If text fits, return as single line
+        if (text.length <= charsPerLine) {
+            return [text];
+        }
+        
+        // Split into words
+        const words = text.split(/[\s_]+/);  // Split on spaces and underscores
+        const lines = [];
+        let currentLine = '';
+        
+        words.forEach(word => {
+            // Handle CamelCase by splitting
+            const splitWords = word.replace(/([a-z])([A-Z])/g, '$1 $2').split(' ');
+            
+            splitWords.forEach(w => {
+                if (currentLine.length === 0) {
+                    currentLine = w;
+                } else if ((currentLine + ' ' + w).length <= charsPerLine) {
+                    currentLine += ' ' + w;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = w;
+                }
+            });
+        });
+        
+        // Don't forget the last line
+        if (currentLine.length > 0) {
+            lines.push(currentLine);
+        }
+        
+        // Limit to 3 lines max, truncate with ellipsis if needed
+        if (lines.length > 3) {
+            lines.length = 3;
+            if (lines[2].length > charsPerLine - 3) {
+                lines[2] = lines[2].substring(0, charsPerLine - 3) + '...';
+            } else {
+                lines[2] += '...';
+            }
+        }
+        
+        return lines.length > 0 ? lines : [''];
     }
     
     /**
@@ -1322,6 +2346,17 @@ export default class ProcessCanvas extends LightningElement {
     @track panStart = { x: 0, y: 0 };
     @track panViewBoxStart = { x: 0, y: 0 };
     
+    // Imported flow metadata
+    @track importedFlowName = '';
+    @track importedFlowLabel = '';
+    @track importedFlowType = '';
+    
+    // Resize state for Pool/Lane
+    @track isResizing = false;
+    @track resizeHandle = null; // 'n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'
+    @track resizeStartPoint = null;
+    @track resizeStartDimensions = null;
+    
     // =========================================================================
     // LIFECYCLE
     // =========================================================================
@@ -1386,6 +2421,41 @@ export default class ProcessCanvas extends LightningElement {
     }
     
     // =========================================================================
+    // COMPUTED PROPERTIES - IMPORTED FLOW INFO
+    // =========================================================================
+    
+    get hasImportedFlow() {
+        return !!this.importedFlowName;
+    }
+    
+    get importedFlowDisplayName() {
+        if (!this.importedFlowName) return '';
+        
+        // Show label if available, otherwise show API name
+        const name = this.importedFlowLabel || this.importedFlowName;
+        
+        // Add process type if available
+        const typeLabel = this.getProcessTypeLabel(this.importedFlowType);
+        
+        return typeLabel ? `${name} (${typeLabel})` : name;
+    }
+    
+    getProcessTypeLabel(processType) {
+        const typeMap = {
+            'Flow': 'Screen Flow',
+            'AutoLaunchedFlow': 'Autolaunched Flow',
+            'Workflow': 'Record-Triggered Flow',
+            'CustomEvent': 'Platform Event Flow',
+            'InvocableProcess': 'Invocable Process',
+            'Survey': 'Survey',
+            'ActionCadenceFlow': 'Action Cadence',
+            'Orchestration': 'Orchestration',
+            'TransactionSecurityFlow': 'Transaction Security'
+        };
+        return typeMap[processType] || processType || '';
+    }
+    
+    // =========================================================================
     // COMPUTED PROPERTIES - RENDERED ELEMENTS
     // =========================================================================
     
@@ -1401,6 +2471,9 @@ export default class ProcessCanvas extends LightningElement {
             const isDiamond = typeConfig.shape === 'diamond';
             const isCircle = typeConfig.shape === 'circle';
             const isRect = typeConfig.shape === 'rect';
+            const isPool = typeConfig.shape === 'pool';
+            const isLane = typeConfig.shape === 'lane';
+            const isContainer = isPool || isLane;
             
             const diamondPoints = isDiamond 
                 ? `${centerX},${el.y} ${el.x + el.width},${centerY} ${centerX},${el.y + el.height} ${el.x},${centerY}`
@@ -1419,6 +2492,10 @@ export default class ProcessCanvas extends LightningElement {
                 labelY = el.y + el.height + labelOffset;
             } else if (isDiamond) {
                 labelY = el.y + el.height + labelOffset;
+            } else if (isPool || isLane) {
+                // Pool/Lane labels are in the header (vertical text)
+                labelY = el.y + el.height / 2;
+                labelInside = true;
             } else {
                 labelY = centerY;
                 labelInside = true;
@@ -1456,6 +2533,9 @@ export default class ProcessCanvas extends LightningElement {
                 connPointLeftY = centerY;
             }
             
+            // Compute wrapped label lines for text display
+            const wrappedLabel = this.wrapLabelText(el.name || '', el.width || 120, isCircle || isDiamond);
+            
             let cfcContribution = 0;
             let showComplexityBadge = false;
             let complexityBadgeColor = null;
@@ -1483,8 +2563,8 @@ export default class ProcessCanvas extends LightningElement {
                 : '';
             
             return {
-                ...el,
-                ...typeConfig,
+                ...typeConfig,  // Default config first
+                ...el,          // Element's actual values override defaults (including resized width/height)
                 centerX,
                 centerY,
                 radius,
@@ -1492,6 +2572,9 @@ export default class ProcessCanvas extends LightningElement {
                 isDiamond,
                 isCircle,
                 isRect,
+                isPool,
+                isLane,
+                isContainer,
                 isSelected,
                 diamondPoints,
                 selectionPoints,
@@ -1501,6 +2584,25 @@ export default class ProcessCanvas extends LightningElement {
                 xIconPath,
                 plusIconPath,
                 circleIconRadius,
+                // Wrapped label properties
+                wrappedLabel,
+                labelLine1: wrappedLabel[0] || '',
+                labelLine2: wrappedLabel[1] || '',
+                labelLine3: wrappedLabel[2] || '',
+                hasLine2: wrappedLabel.length > 1,
+                hasLine3: wrappedLabel.length > 2,
+                // Y offsets for multi-line text
+                // For external labels (circles/diamonds), lines go DOWN from labelY
+                // For internal labels (tasks), lines are CENTERED around labelY
+                labelLine1Y: labelInside 
+                    ? (wrappedLabel.length === 1 ? labelY : (labelY - (wrappedLabel.length - 1) * 7))
+                    : labelY,
+                labelLine2Y: labelInside
+                    ? (wrappedLabel.length === 1 ? labelY : (labelY - (wrappedLabel.length - 1) * 7 + 14))
+                    : (labelY + 16),  // External labels: 16px below line 1
+                labelLine3Y: labelInside
+                    ? (wrappedLabel.length === 1 ? labelY : (labelY - (wrappedLabel.length - 1) * 7 + 28))
+                    : (labelY + 32),  // External labels: 32px below line 1
                 showUserIcon: typeConfig.icon === 'user',
                 showServiceIcon: typeConfig.icon === 'service',
                 iconTransform: `translate(${el.x + 8}, ${el.y + 8})`,
@@ -1508,6 +2610,52 @@ export default class ProcessCanvas extends LightningElement {
                 labelY,
                 labelInside,
                 strokeDasharray: typeConfig.dashed ? '5,3' : 'none',
+                // Pool/Lane header dimensions (orientation-aware)
+                headerSize: typeConfig.headerSize || 30,
+                isHorizontal: el.orientation !== 'vertical',
+                isVertical: el.orientation === 'vertical',
+                // Header rect for horizontal: left side (width=headerSize, height=full)
+                // Header rect for vertical: top side (width=full, height=headerSize)
+                headerRectX: el.x,
+                headerRectY: el.y,
+                headerRectWidth: el.orientation === 'vertical' ? el.width : (typeConfig.headerSize || 30),
+                headerRectHeight: el.orientation === 'vertical' ? (typeConfig.headerSize || 30) : el.height,
+                // Pool/Lane label position
+                poolLabelX: el.orientation === 'vertical' 
+                    ? el.x + el.width / 2 
+                    : el.x + (typeConfig.headerSize || 30) / 2,
+                poolLabelY: el.orientation === 'vertical' 
+                    ? el.y + (typeConfig.headerSize || 30) / 2 
+                    : el.y + el.height / 2,
+                poolLabelTransform: el.orientation === 'vertical' 
+                    ? '' // No rotation for vertical (horizontal text at top)
+                    : `rotate(-90, ${el.x + (typeConfig.headerSize || 30) / 2}, ${el.y + el.height / 2})`,
+                // Resize handles (8 points around the element) - FLATTENED for LWC
+                showResizeHandles: isContainer && isSelected,
+                // North handle (top center)
+                resizeHandleNX: centerX - 4,
+                resizeHandleNY: el.y - 4,
+                // South handle (bottom center)
+                resizeHandleSX: centerX - 4,
+                resizeHandleSY: el.y + el.height - 4,
+                // East handle (right center)
+                resizeHandleEX: el.x + el.width - 4,
+                resizeHandleEY: centerY - 4,
+                // West handle (left center)
+                resizeHandleWX: el.x - 4,
+                resizeHandleWY: centerY - 4,
+                // Northeast handle (top right)
+                resizeHandleNEX: el.x + el.width - 4,
+                resizeHandleNEY: el.y - 4,
+                // Northwest handle (top left)
+                resizeHandleNWX: el.x - 4,
+                resizeHandleNWY: el.y - 4,
+                // Southeast handle (bottom right)
+                resizeHandleSEX: el.x + el.width - 4,
+                resizeHandleSEY: el.y + el.height - 4,
+                // Southwest handle (bottom left)
+                resizeHandleSWX: el.x - 4,
+                resizeHandleSWY: el.y + el.height - 4,
                 connPointTopX,
                 connPointTopY,
                 connPointRightX,
@@ -1516,7 +2664,7 @@ export default class ProcessCanvas extends LightningElement {
                 connPointBottomY,
                 connPointLeftX,
                 connPointLeftY,
-                cssClass: `bpmn-element ${isSelected ? 'selected' : ''}`,
+                cssClass: `bpmn-element ${isSelected ? 'selected' : ''} ${isContainer ? 'container-element' : ''}`,
                 cfcContribution,
                 cfcType: typeConfig.cfcType || null,
                 showComplexityBadge,
@@ -1562,10 +2710,73 @@ export default class ProcessCanvas extends LightningElement {
     // =========================================================================
     
     calculateConnectionPath(source, target, sourceSide, targetSide) {
-        const sourcePoint = this.getConnectionPointAtSide(source, sourceSide || 'right');
-        const targetPoint = this.getConnectionPointAtSide(target, targetSide || 'left');
+        // Auto-detect best connection sides based on relative positions
+        const bestSides = this.determineBestConnectionSides(source, target);
+        const actualSourceSide = sourceSide || bestSides.sourceSide;
+        const actualTargetSide = targetSide || bestSides.targetSide;
         
-        return this.createOrthogonalPath(sourcePoint, targetPoint, sourceSide, targetSide);
+        const sourcePoint = this.getConnectionPointAtSide(source, actualSourceSide);
+        const targetPoint = this.getConnectionPointAtSide(target, actualTargetSide);
+        
+        return this.createOrthogonalPath(sourcePoint, targetPoint, actualSourceSide, actualTargetSide);
+    }
+    
+    /**
+     * Determine the best sides for connecting two elements based on their positions
+     * Prefers horizontal flow (left-to-right) for typical BPMN diagrams
+     */
+    determineBestConnectionSides(source, target) {
+        const sourceCenterX = source.x + (source.width || 120) / 2;
+        const sourceCenterY = source.y + (source.height || 80) / 2;
+        const targetCenterX = target.x + (target.width || 120) / 2;
+        const targetCenterY = target.y + (target.height || 80) / 2;
+        
+        const dx = targetCenterX - sourceCenterX;
+        const dy = targetCenterY - sourceCenterY;
+        
+        // Determine primary direction
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+        
+        let sourceSide, targetSide;
+        
+        // Primarily horizontal flow (most common in BPMN)
+        if (absDx > absDy * 0.5) {
+            if (dx > 0) {
+                // Target is to the right
+                sourceSide = 'right';
+                targetSide = 'left';
+            } else {
+                // Target is to the left (backflow)
+                sourceSide = 'left';
+                targetSide = 'right';
+            }
+        } else {
+            // Primarily vertical flow
+            if (dy > 0) {
+                // Target is below
+                sourceSide = 'bottom';
+                targetSide = 'top';
+            } else {
+                // Target is above
+                sourceSide = 'top';
+                targetSide = 'bottom';
+            }
+        }
+        
+        // Special case: if elements are very close horizontally but offset vertically
+        // prefer using top/bottom exits for cleaner routing
+        if (absDx < 50 && absDy > 30) {
+            if (dy > 0) {
+                sourceSide = 'bottom';
+                targetSide = 'top';
+            } else {
+                sourceSide = 'top';
+                targetSide = 'bottom';
+            }
+        }
+        
+        return { sourceSide, targetSide };
     }
     
     getConnectionPointAtSide(element, side) {
@@ -1617,7 +2828,7 @@ export default class ProcessCanvas extends LightningElement {
      * @returns {String} SVG path string
      */
     createOrthogonalPath(from, to, sourceSide, targetSide) {
-        const r = 8; // Corner radius
+        const r = 12; // Corner radius - larger for smoother curves
         let path = `M ${from.x} ${from.y}`;
         
         // Direction helpers
@@ -1627,146 +2838,146 @@ export default class ProcessCanvas extends LightningElement {
         const goingDown = dy > 0;
         const goingLeft = dx < 0;
         const goingUp = dy < 0;
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
         
         // If points are nearly aligned, draw straight line
-        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) {
+        if (absDx < 5 && absDy < 5) {
             return path + ` L ${to.x} ${to.y}`;
         }
         
         // Straight horizontal line (same Y)
-        if (Math.abs(dy) < 5) {
+        if (absDy < 5) {
             return path + ` L ${to.x} ${to.y}`;
         }
         
         // Straight vertical line (same X)
-        if (Math.abs(dx) < 5) {
+        if (absDx < 5) {
             return path + ` L ${to.x} ${to.y}`;
         }
         
         // =====================================================================
-        // SIMPLE L-SHAPE PATHS (one corner only)
-        // These are the preferred paths when source direction aligns with target
+        // STANDARD BPMN MANHATTAN ROUTING
+        // Right-to-Left is the most common case in process flows
         // =====================================================================
         
-        // Exiting RIGHT, target is to the right and target expects LEFT entry
-        // Path: → corner ↓ (or ↑)
-        if (sourceSide === 'right' && goingRight && targetSide === 'left') {
-            // Simple case: go right, then turn to target Y, then go right to target
-            // Actually need 2 corners for this, handled below
+        // CASE 1: Right to Left - standard horizontal flow with vertical offset
+        // Most common in BPMN: exit right, enter left, with different Y positions
+        if (sourceSide === 'right' && targetSide === 'left') {
+            // Calculate midpoint X (halfway between source and target)
+            const midX = from.x + (dx / 2);
+            
+            if (absDy < 20) {
+                // Almost same level - single step down/up then across
+                path += ` L ${midX - r} ${from.y}`;
+                path += ` Q ${midX} ${from.y} ${midX} ${from.y + (goingDown ? r : -r)}`;
+                path += ` L ${midX} ${to.y + (goingDown ? -r : r)}`;
+                path += ` Q ${midX} ${to.y} ${midX + r} ${to.y}`;
+                path += ` L ${to.x} ${to.y}`;
+            } else {
+                // Significant Y difference - clean S-curve
+                path += ` L ${midX - r} ${from.y}`;
+                path += ` Q ${midX} ${from.y} ${midX} ${from.y + (goingDown ? r : -r)}`;
+                path += ` L ${midX} ${to.y - (goingDown ? r : -r)}`;
+                path += ` Q ${midX} ${to.y} ${midX + r} ${to.y}`;
+                path += ` L ${to.x} ${to.y}`;
+            }
+            return path;
         }
         
-        // Exiting BOTTOM, target is below - simple L-shape
-        // Path: ↓ corner → (or ←)
-        if (sourceSide === 'bottom' && goingDown) {
-            const cornerY = to.y; // Turn at target's Y level
+        // CASE 2: Left to Right - backflow (less common)
+        if (sourceSide === 'left' && targetSide === 'right') {
+            const midX = from.x - Math.max(30, absDx / 2);
             
-            // Only use L-shape if we have room (target Y is below our exit)
-            if (to.y > from.y + r * 2) {
-                path += ` L ${from.x} ${cornerY - r}`;
-                path += ` Q ${from.x} ${cornerY} ${from.x + (goingRight ? r : -r)} ${cornerY}`;
-                path += ` L ${to.x} ${to.y}`;
-                return path;
-            }
+            path += ` L ${midX + r} ${from.y}`;
+            path += ` Q ${midX} ${from.y} ${midX} ${from.y + (goingDown ? r : -r)}`;
+            path += ` L ${midX} ${to.y - (goingDown ? r : -r)}`;
+            path += ` Q ${midX} ${to.y} ${midX - r} ${to.y}`;
+            path += ` L ${to.x} ${to.y}`;
+            return path;
         }
         
-        // Exiting TOP, target is above - simple L-shape
-        // Path: ↑ corner → (or ←)
-        if (sourceSide === 'top' && goingUp) {
-            const cornerY = to.y; // Turn at target's Y level
+        // CASE 3: Bottom to Top - vertical flow downward
+        if (sourceSide === 'bottom' && targetSide === 'top') {
+            const midY = from.y + (dy / 2);
             
-            // Only use L-shape if we have room
-            if (to.y < from.y - r * 2) {
-                path += ` L ${from.x} ${cornerY + r}`;
-                path += ` Q ${from.x} ${cornerY} ${from.x + (goingRight ? r : -r)} ${cornerY}`;
+            if (absDx < 20) {
+                // Almost same X - straight down
                 path += ` L ${to.x} ${to.y}`;
-                return path;
+            } else {
+                // Need horizontal jog
+                path += ` L ${from.x} ${midY - r}`;
+                path += ` Q ${from.x} ${midY} ${from.x + (goingRight ? r : -r)} ${midY}`;
+                path += ` L ${to.x - (goingRight ? r : -r)} ${midY}`;
+                path += ` Q ${to.x} ${midY} ${to.x} ${midY + r}`;
+                path += ` L ${to.x} ${to.y}`;
             }
+            return path;
         }
         
-        // Exiting LEFT, target is to the left - simple L-shape
-        // Path: ← corner ↓ (or ↑)
-        if (sourceSide === 'left' && goingLeft) {
-            const cornerX = to.x; // Turn at target's X level
+        // CASE 4: Top to Bottom - vertical flow upward  
+        if (sourceSide === 'top' && targetSide === 'bottom') {
+            const midY = from.y + (dy / 2);
             
-            if (to.x < from.x - r * 2) {
-                path += ` L ${cornerX + r} ${from.y}`;
-                path += ` Q ${cornerX} ${from.y} ${cornerX} ${from.y + (goingDown ? r : -r)}`;
+            if (absDx < 20) {
                 path += ` L ${to.x} ${to.y}`;
-                return path;
-            }
-        }
-        
-        // Exiting RIGHT, target is to the right - simple L-shape
-        // Path: → corner ↓ (or ↑)  
-        if (sourceSide === 'right' && goingRight) {
-            const cornerX = to.x; // Turn at target's X level
-            
-            if (to.x > from.x + r * 2) {
-                path += ` L ${cornerX - r} ${from.y}`;
-                path += ` Q ${cornerX} ${from.y} ${cornerX} ${from.y + (goingDown ? r : -r)}`;
+            } else {
+                path += ` L ${from.x} ${midY + r}`;
+                path += ` Q ${from.x} ${midY} ${from.x + (goingRight ? r : -r)} ${midY}`;
+                path += ` L ${to.x - (goingRight ? r : -r)} ${midY}`;
+                path += ` Q ${to.x} ${midY} ${to.x} ${midY - r}`;
                 path += ` L ${to.x} ${to.y}`;
-                return path;
             }
+            return path;
         }
         
         // =====================================================================
-        // S-SHAPE PATHS (two corners) - when direction conflicts
-        // Used when we exit one way but need to go the opposite direction
+        // FALLBACK: Generic L-shape or S-shape for other combinations
         // =====================================================================
         
         const horizontalExit = sourceSide === 'left' || sourceSide === 'right';
         const verticalExit = sourceSide === 'top' || sourceSide === 'bottom';
         
         if (horizontalExit) {
-            // Source exits horizontally (left or right)
             const exitRight = sourceSide === 'right';
-            
-            // Calculate midpoint X
             let midX;
+            
             if (exitRight) {
                 midX = Math.max(from.x + 30, (from.x + to.x) / 2);
             } else {
                 midX = Math.min(from.x - 30, (from.x + to.x) / 2);
             }
             
-            // Build S-path with two corners
-            const corner1X = exitRight ? midX - r : midX + r;
             const firstCornerY = goingDown ? from.y + r : from.y - r;
             const secondCornerY = goingDown ? to.y - r : to.y + r;
-            const corner2X = goingRight ? midX + r : midX - r;
             
-            path += ` L ${corner1X} ${from.y}`;
+            path += ` L ${midX - (exitRight ? r : -r)} ${from.y}`;
             path += ` Q ${midX} ${from.y} ${midX} ${firstCornerY}`;
             path += ` L ${midX} ${secondCornerY}`;
-            path += ` Q ${midX} ${to.y} ${corner2X} ${to.y}`;
+            path += ` Q ${midX} ${to.y} ${midX + (goingRight ? r : -r)} ${to.y}`;
             path += ` L ${to.x} ${to.y}`;
             
         } else if (verticalExit) {
-            // Source exits vertically (top or bottom)
             const exitBottom = sourceSide === 'bottom';
-            
-            // Calculate midpoint Y
             let midY;
+            
             if (exitBottom) {
                 midY = Math.max(from.y + 30, (from.y + to.y) / 2);
             } else {
                 midY = Math.min(from.y - 30, (from.y + to.y) / 2);
             }
             
-            // Build S-path with two corners
-            const corner1Y = exitBottom ? midY - r : midY + r;
             const firstCornerX = goingRight ? from.x + r : from.x - r;
             const secondCornerX = goingRight ? to.x - r : to.x + r;
-            const corner2Y = goingDown ? midY + r : midY - r;
             
-            path += ` L ${from.x} ${corner1Y}`;
+            path += ` L ${from.x} ${midY - (exitBottom ? r : -r)}`;
             path += ` Q ${from.x} ${midY} ${firstCornerX} ${midY}`;
             path += ` L ${secondCornerX} ${midY}`;
-            path += ` Q ${to.x} ${midY} ${to.x} ${corner2Y}`;
+            path += ` Q ${to.x} ${midY} ${to.x} ${midY + (goingDown ? r : -r)}`;
             path += ` L ${to.x} ${to.y}`;
             
         } else {
-            // Fallback: straight line
+            // Direct line fallback
             path += ` L ${to.x} ${to.y}`;
         }
         
@@ -1937,6 +3148,12 @@ export default class ProcessCanvas extends LightningElement {
     }
     
     handleCanvasMouseMove(event) {
+        // Handle resizing (priority over drag)
+        if (this.isResizing) {
+            this.handleResizeMove(event);
+            return;
+        }
+        
         // Handle panning
         if (this.isPanning) {
             const dx = (event.clientX - this.panStart.x) / this.zoom;
@@ -1976,6 +3193,12 @@ export default class ProcessCanvas extends LightningElement {
             this.notifyCanvasChange();
         }
         
+        if (this.isResizing) {
+            this.isResizing = false;
+            this.resizeHandle = null;
+            this.notifyCanvasChange();
+        }
+        
         // If connecting and mouse up on empty space, cancel
         if (this.isConnecting && (event.target.classList.contains('canvas-background') || 
             event.target.classList.contains('canvas-svg'))) {
@@ -1993,6 +3216,123 @@ export default class ProcessCanvas extends LightningElement {
             this.isDragging = false;
             this.notifyCanvasChange();
         }
+        
+        if (this.isResizing) {
+            this.isResizing = false;
+            this.resizeHandle = null;
+            this.notifyCanvasChange();
+        }
+    }
+    
+    // =========================================================================
+    // EVENT HANDLERS - RESIZE (for Pool/Lane)
+    // =========================================================================
+    
+    handleResizeHandleMouseDown(event) {
+        if (this.readOnly) return;
+        
+        event.stopPropagation();
+        const elementId = event.currentTarget.dataset.elementid;
+        const handle = event.currentTarget.dataset.handle;
+        
+        const element = this.elements.find(el => el.id === elementId);
+        if (!element) return;
+        
+        const typeConfig = ELEMENT_TYPES[element.type];
+        if (!typeConfig || !typeConfig.isResizable) return;
+        
+        this.isResizing = true;
+        this.resizeHandle = handle;
+        this.resizeStartPoint = this.getSvgPoint(event);
+        this.resizeStartDimensions = {
+            x: element.x,
+            y: element.y,
+            width: element.width,
+            height: element.height
+        };
+        this.selectElement(elementId);
+    }
+    
+    handleResizeMove(event) {
+        if (!this.isResizing || !this.selectedElementId) return;
+        
+        const currentPoint = this.getSvgPoint(event);
+        const deltaX = currentPoint.x - this.resizeStartPoint.x;
+        const deltaY = currentPoint.y - this.resizeStartPoint.y;
+        
+        const element = this.elements.find(el => el.id === this.selectedElementId);
+        if (!element) return;
+        
+        const typeConfig = ELEMENT_TYPES[element.type];
+        const minWidth = typeConfig.minWidth || 100;
+        const minHeight = typeConfig.minHeight || 100;
+        const maxWidth = typeConfig.maxWidth || 2000;
+        const maxHeight = typeConfig.maxHeight || 1500;
+        
+        let newX = this.resizeStartDimensions.x;
+        let newY = this.resizeStartDimensions.y;
+        let newWidth = this.resizeStartDimensions.width;
+        let newHeight = this.resizeStartDimensions.height;
+        
+        // Handle each resize direction
+        if (this.resizeHandle.includes('e')) {
+            newWidth = Math.max(minWidth, Math.min(maxWidth, this.resizeStartDimensions.width + deltaX));
+        }
+        if (this.resizeHandle.includes('w')) {
+            const widthChange = Math.max(-this.resizeStartDimensions.width + minWidth, Math.min(deltaX, this.resizeStartDimensions.width - minWidth));
+            newX = this.resizeStartDimensions.x + widthChange;
+            newWidth = this.resizeStartDimensions.width - widthChange;
+        }
+        if (this.resizeHandle.includes('s')) {
+            newHeight = Math.max(minHeight, Math.min(maxHeight, this.resizeStartDimensions.height + deltaY));
+        }
+        if (this.resizeHandle.includes('n')) {
+            const heightChange = Math.max(-this.resizeStartDimensions.height + minHeight, Math.min(deltaY, this.resizeStartDimensions.height - minHeight));
+            newY = this.resizeStartDimensions.y + heightChange;
+            newHeight = this.resizeStartDimensions.height - heightChange;
+        }
+        
+        // Snap to grid (10px)
+        newX = Math.round(newX / 10) * 10;
+        newY = Math.round(newY / 10) * 10;
+        newWidth = Math.round(newWidth / 10) * 10;
+        newHeight = Math.round(newHeight / 10) * 10;
+        
+        const index = this.elements.findIndex(el => el.id === this.selectedElementId);
+        if (index !== -1) {
+            this.elements[index] = {
+                ...this.elements[index],
+                x: newX,
+                y: newY,
+                width: newWidth,
+                height: newHeight
+            };
+            this.elements = [...this.elements];
+        }
+    }
+    
+    // Toggle orientation for Pool/Lane
+    @api
+    toggleOrientation(elementId) {
+        const index = this.elements.findIndex(el => el.id === elementId);
+        if (index === -1) return;
+        
+        const element = this.elements[index];
+        const typeConfig = ELEMENT_TYPES[element.type];
+        
+        if (typeConfig.shape !== 'pool' && typeConfig.shape !== 'lane') return;
+        
+        const newOrientation = element.orientation === 'horizontal' ? 'vertical' : 'horizontal';
+        
+        // Swap width and height
+        this.elements[index] = {
+            ...element,
+            orientation: newOrientation,
+            width: element.height,
+            height: element.width
+        };
+        this.elements = [...this.elements];
+        this.notifyCanvasChange();
     }
     
     handleCanvasWheel(event) {

@@ -1,0 +1,588 @@
+/**
+ * @description Styles for Salesforce Metadata Selector - Process Modeler Style
+ * @author Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+ * @date 2024-12-14
+ * @version 2.1.0
+ * 
+ * EXPLANATION:
+ * Completely redesigned to match the Process Modeler's dark blue toolbar style
+ * and overall design language. Uses custom styling instead of SLDS defaults.
+ * 
+ * CHANGELOG:
+ * Version | Date       | Author | Description
+ * --------|------------|--------|------------------------------------------
+ * 1.0.0   | 2024-12-14 | DvM    | Initial creation - SLDS based
+ * 2.0.0   | 2024-12-14 | DvM    | Complete redesign to match Process Modeler
+ * 2.1.0   | 2024-12-15 | DvM    | Fixed height to fill parent container (100%)
+ */
+
+/* =========================================================================
+   HOST - Fill parent container
+   ========================================================================= */
+
+:host {
+    display: block;
+    height: 100%;
+    width: 100%;
+}
+
+/* =========================================================================
+   MAIN CONTAINER
+   ========================================================================= */
+
+.selector-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: #FFFFFF;
+    overflow: hidden;
+}
+
+/* =========================================================================
+   HEADER - Dark Blue Toolbar Style
+   ========================================================================= */
+
+.selector-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    background-color: #1E3A5F;
+    color: #FFFFFF;
+}
+
+.header-icon {
+    --lwc-colorTextIconDefault: #FFFFFF;
+}
+
+.header-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #FFFFFF;
+}
+
+/* =========================================================================
+   TABS - Clean Modern Style
+   ========================================================================= */
+
+.tabs-container {
+    display: flex;
+    background-color: #F1F5F9;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.tab-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748B;
+    background-color: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.tab-item:hover {
+    color: #1E3A5F;
+    background-color: #E2E8F0;
+}
+
+.tab-item.active {
+    color: #1E3A5F;
+    background-color: #FFFFFF;
+    border-bottom-color: #1E3A5F;
+}
+
+.tab-icon {
+    --lwc-colorTextIconDefault: currentColor;
+}
+
+/* =========================================================================
+   SEARCH & FILTER BAR
+   ========================================================================= */
+
+.search-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    padding: 16px 20px;
+    background-color: #FFFFFF;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.search-field {
+    flex: 1;
+    min-width: 200px;
+}
+
+.filter-field {
+    width: 200px;
+}
+
+.refresh-button {
+    flex-shrink: 0;
+}
+
+/* Custom button styling */
+.btn-refresh {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #1E3A5F;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-refresh:hover {
+    background-color: #F1F5F9;
+    border-color: #CBD5E1;
+}
+
+.btn-refresh-icon {
+    --lwc-colorTextIconDefault: #1E3A5F;
+}
+
+/* =========================================================================
+   MAIN CONTENT AREA
+   ========================================================================= */
+
+.content-area {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* =========================================================================
+   TABLE PANEL
+   ========================================================================= */
+
+.table-panel {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #E2E8F0;
+    overflow: hidden;
+}
+
+.table-container {
+    flex: 1;
+    overflow-y: auto;
+    background-color: #FFFFFF;
+}
+
+/* Custom table styling */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.data-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.data-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background-color: #F8FAFC;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.data-table td {
+    padding: 12px 16px;
+    color: #1E293B;
+    border-bottom: 1px solid #F1F5F9;
+}
+
+.data-table tbody tr {
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+}
+
+.data-table tbody tr:hover {
+    background-color: #F8FAFC;
+}
+
+.data-table tbody tr.selected {
+    background-color: #EFF6FF;
+}
+
+.data-table tbody tr.selected td {
+    border-bottom-color: #DBEAFE;
+}
+
+/* Row number styling */
+.row-number {
+    color: #94A3B8;
+    font-size: 12px;
+    width: 40px;
+}
+
+/* Type icon in table */
+.type-icon {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.type-icon-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background-color: #EFF6FF;
+}
+
+.type-icon-badge.flow {
+    background-color: #DBEAFE;
+    --lwc-colorTextIconDefault: #2563EB;
+}
+
+.type-icon-badge.apex {
+    background-color: #FEE2E2;
+    --lwc-colorTextIconDefault: #DC2626;
+}
+
+.type-icon-badge.lwc {
+    background-color: #D1FAE5;
+    --lwc-colorTextIconDefault: #059669;
+}
+
+/* Status badge */
+.status-badge {
+    display: inline-flex;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    text-transform: capitalize;
+}
+
+.status-badge.active {
+    background-color: #D1FAE5;
+    color: #059669;
+}
+
+.status-badge.inactive,
+.status-badge.draft {
+    background-color: #F1F5F9;
+    color: #64748B;
+}
+
+.status-badge.obsolete {
+    background-color: #FEE2E2;
+    color: #DC2626;
+}
+
+/* Truncated text */
+.text-truncate {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* =========================================================================
+   PREVIEW PANEL
+   ========================================================================= */
+
+.preview-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #F8FAFC;
+    min-width: 280px;
+}
+
+.preview-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 20px;
+    background-color: #FFFFFF;
+    border-bottom: 1px solid #E2E8F0;
+}
+
+.preview-icon {
+    --lwc-colorTextIconDefault: #64748B;
+}
+
+.preview-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1E293B;
+}
+
+.preview-content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+/* Empty state */
+.preview-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #94A3B8;
+    text-align: center;
+}
+
+.preview-empty-icon {
+    --lwc-colorTextIconDefault: #CBD5E1;
+    margin-bottom: 12px;
+}
+
+.preview-empty-text {
+    font-size: 13px;
+}
+
+/* Preview details */
+.preview-details {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.preview-name {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1E293B;
+}
+
+.preview-api-name {
+    font-size: 12px;
+    color: #64748B;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    background-color: #F1F5F9;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.preview-section {
+    padding-top: 12px;
+    border-top: 1px solid #E2E8F0;
+}
+
+.preview-section-title {
+    margin: 0 0 8px 0;
+    font-size: 10px;
+    font-weight: 600;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.preview-field {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+}
+
+.preview-field-label {
+    font-size: 12px;
+    color: #64748B;
+}
+
+.preview-field-value {
+    font-size: 12px;
+    font-weight: 500;
+    color: #1E293B;
+}
+
+/* =========================================================================
+   FOOTER
+   ========================================================================= */
+
+.selector-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background-color: #FFFFFF;
+    border-top: 1px solid #E2E8F0;
+}
+
+.footer-info {
+    font-size: 13px;
+    color: #64748B;
+}
+
+.footer-actions {
+    display: flex;
+    gap: 12px;
+}
+
+/* Footer buttons */
+.btn-cancel {
+    padding: 10px 20px;
+    background-color: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748B;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-cancel:hover {
+    background-color: #F8FAFC;
+    border-color: #CBD5E1;
+    color: #1E293B;
+}
+
+.btn-convert {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    background-color: #1E3A5F;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #FFFFFF;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-convert:hover:not(:disabled) {
+    background-color: #16324F;
+}
+
+.btn-convert:disabled {
+    background-color: #94A3B8;
+    cursor: not-allowed;
+}
+
+.btn-convert-icon {
+    --lwc-colorTextIconDefault: #FFFFFF;
+}
+
+/* =========================================================================
+   LOADING STATE
+   ========================================================================= */
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 100;
+}
+
+/* =========================================================================
+   EMPTY STATE
+   ========================================================================= */
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.empty-state-icon {
+    --lwc-colorTextIconDefault: #CBD5E1;
+    margin-bottom: 16px;
+}
+
+.empty-state-title {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1E293B;
+}
+
+.empty-state-text {
+    margin: 0;
+    font-size: 13px;
+    color: #64748B;
+}
+
+/* =========================================================================
+   SCROLLBAR STYLING
+   ========================================================================= */
+
+.table-container::-webkit-scrollbar,
+.preview-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.table-container::-webkit-scrollbar-track,
+.preview-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.table-container::-webkit-scrollbar-thumb,
+.preview-content::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 3px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover,
+.preview-content::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
+}
+
+/* =========================================================================
+   RESPONSIVE
+   ========================================================================= */
+
+@media (max-width: 900px) {
+    .content-area {
+        flex-direction: column;
+    }
+    
+    .table-panel {
+        border-right: none;
+        border-bottom: 1px solid #E2E8F0;
+        max-height: 50%;
+    }
+    
+    .preview-panel {
+        min-width: 100%;
+    }
+    
+    .search-bar {
+        flex-wrap: wrap;
+    }
+    
+    .filter-field {
+        width: 100%;
+    }
+}

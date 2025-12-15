@@ -1,20 +1,32 @@
 <!--
-  @description: Palette template with draggable BPMN elements
+  @description: Palette template with draggable BPMN elements including Salesforce Flow types
   @author: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
-  @date: 2024-12-12
-  @version: 1.0.1
+  @date: 2024-12-14
+  @version: 1.2.0
   
   CHANGELOG:
   Version | Date       | Author | Description
   ---------|------------|--------|------------------------------------------
   1.0.0   | 2024-12-12 | DvM    | Initial creation
   1.0.1   | 2024-12-12 | DvM    | Fixed: use pre-computed properties from JS
+  1.1.0   | 2024-12-14 | DvM    | Added: Salesforce Flow element SVGs
+                                  Added: Pool, Lane, Complex Gateway SVGs
+                                  Added: Signal, Error, Terminate event SVGs
+  1.2.0   | 2024-12-14 | DvM    | Added: Import from Salesforce button (toolbar style)
 -->
 <template>
     <div class="palette-container">
         <!-- Header -->
         <div class="palette-header">
             <h3 class="palette-title">Elements</h3>
+        </div>
+        
+        <!-- Import from Salesforce Button -->
+        <div class="palette-import">
+            <button class="import-button" onclick={handleImportClick} title="Import Flow, Apex, or LWC from Salesforce">
+                <lightning-icon icon-name="utility:download" size="xx-small" class="import-icon"></lightning-icon>
+                <span class="import-text">Import from Salesforce</span>
+            </button>
         </div>
         
         <!-- Search -->
@@ -68,7 +80,11 @@
                                     onclick={handleElementClick}
                                     title={element.description}
                                 >
-                                    <!-- Element Icon - Start Event -->
+                                    <!-- ============================================ -->
+                                    <!-- EVENTS -->
+                                    <!-- ============================================ -->
+                                    
+                                    <!-- Start Event -->
                                     <template if:true={element.isStartEvent}>
                                         <svg viewBox="0 0 36 36" class="element-svg">
                                             <circle cx="18" cy="18" r="16" fill="white" stroke="#22A06B" stroke-width="2"></circle>
@@ -99,6 +115,16 @@
                                         </svg>
                                     </template>
                                     
+                                    <!-- Timer Intermediate Event -->
+                                    <template if:true={element.isTimerIntermediateEvent}>
+                                        <svg viewBox="0 0 36 36" class="element-svg">
+                                            <circle cx="18" cy="18" r="16" fill="white" stroke="#0052CC" stroke-width="2"></circle>
+                                            <circle cx="18" cy="18" r="12" fill="none" stroke="#0052CC" stroke-width="1"></circle>
+                                            <circle cx="18" cy="18" r="8" fill="none" stroke="#0052CC" stroke-width="1"></circle>
+                                            <path d="M18 12 L18 18 L22 20" fill="none" stroke="#0052CC" stroke-width="1.5" stroke-linecap="round"></path>
+                                        </svg>
+                                    </template>
+                                    
                                     <!-- Message Start Event -->
                                     <template if:true={element.isMessageStartEvent}>
                                         <svg viewBox="0 0 36 36" class="element-svg">
@@ -107,6 +133,61 @@
                                             <path d="M10 12 L18 19 L26 12" fill="none" stroke="#22A06B" stroke-width="1.5"></path>
                                         </svg>
                                     </template>
+                                    
+                                    <!-- Message End Event -->
+                                    <template if:true={element.isMessageEndEvent}>
+                                        <svg viewBox="0 0 36 36" class="element-svg">
+                                            <circle cx="18" cy="18" r="16" fill="white" stroke="#DE350B" stroke-width="4"></circle>
+                                            <rect x="10" y="12" width="16" height="12" fill="#DE350B" stroke="none"></rect>
+                                            <path d="M10 12 L18 19 L26 12" fill="none" stroke="white" stroke-width="1.5"></path>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- Signal Start Event (Platform Event) -->
+                                    <template if:true={element.isSignalStartEvent}>
+                                        <svg viewBox="0 0 36 36" class="element-svg">
+                                            <circle cx="18" cy="18" r="16" fill="white" stroke="#22A06B" stroke-width="2"></circle>
+                                            <polygon points="18,8 28,26 8,26" fill="none" stroke="#22A06B" stroke-width="1.5"></polygon>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- Signal End Event -->
+                                    <template if:true={element.isSignalEndEvent}>
+                                        <svg viewBox="0 0 36 36" class="element-svg">
+                                            <circle cx="18" cy="18" r="16" fill="white" stroke="#DE350B" stroke-width="4"></circle>
+                                            <polygon points="18,8 28,26 8,26" fill="#DE350B" stroke="none"></polygon>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- Error End Event -->
+                                    <template if:true={element.isErrorEndEvent}>
+                                        <svg viewBox="0 0 36 36" class="element-svg">
+                                            <circle cx="18" cy="18" r="16" fill="white" stroke="#DE350B" stroke-width="4"></circle>
+                                            <path d="M10 26 L14 14 L18 22 L22 10 L26 26" fill="none" stroke="#DE350B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- Terminate End Event -->
+                                    <template if:true={element.isTerminateEndEvent}>
+                                        <svg viewBox="0 0 36 36" class="element-svg">
+                                            <circle cx="18" cy="18" r="16" fill="white" stroke="#DE350B" stroke-width="4"></circle>
+                                            <circle cx="18" cy="18" r="10" fill="#DE350B" stroke="none"></circle>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- Wait Event (Pause) -->
+                                    <template if:true={element.isWaitEvent}>
+                                        <svg viewBox="0 0 36 36" class="element-svg">
+                                            <circle cx="18" cy="18" r="16" fill="#FEEBC8" stroke="#DD6B20" stroke-width="2"></circle>
+                                            <circle cx="18" cy="18" r="12" fill="none" stroke="#DD6B20" stroke-width="1"></circle>
+                                            <rect x="13" y="12" width="4" height="12" fill="#DD6B20"></rect>
+                                            <rect x="19" y="12" width="4" height="12" fill="#DD6B20"></rect>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- ============================================ -->
+                                    <!-- STANDARD TASKS -->
+                                    <!-- ============================================ -->
                                     
                                     <!-- User Task -->
                                     <template if:true={element.isUserTask}>
@@ -121,8 +202,9 @@
                                     <template if:true={element.isServiceTask}>
                                         <svg viewBox="0 0 60 40" class="element-svg task">
                                             <rect x="2" y="2" width="56" height="36" rx="5" fill="white" stroke="#0052CC" stroke-width="2"></rect>
-                                            <circle cx="15" cy="20" r="6" fill="none" stroke="#0052CC" stroke-width="1.5"></circle>
-                                            <path d="M15 12 L15 14 M15 26 L15 28 M9 20 L7 20 M23 20 L21 20" fill="none" stroke="#0052CC" stroke-width="1.5"></path>
+                                            <circle cx="15" cy="20" r="7" fill="none" stroke="#0052CC" stroke-width="1.5"></circle>
+                                            <circle cx="15" cy="20" r="3" fill="#0052CC" stroke="none"></circle>
+                                            <path d="M15 11 L15 13 M15 27 L15 29 M6 20 L8 20 M22 20 L24 20" fill="none" stroke="#0052CC" stroke-width="1.5"></path>
                                         </svg>
                                     </template>
                                     
@@ -130,8 +212,8 @@
                                     <template if:true={element.isScriptTask}>
                                         <svg viewBox="0 0 60 40" class="element-svg task">
                                             <rect x="2" y="2" width="56" height="36" rx="5" fill="white" stroke="#0052CC" stroke-width="2"></rect>
-                                            <path d="M8 10 L20 10 L24 14 L24 30 L8 30 Z" fill="none" stroke="#0052CC" stroke-width="1.5"></path>
-                                            <path d="M11 16 L21 16 M11 20 L18 20" fill="none" stroke="#0052CC" stroke-width="1"></path>
+                                            <path d="M8 12 L8 28 Q8 30 10 30 L18 30" fill="none" stroke="#0052CC" stroke-width="1.5"></path>
+                                            <path d="M12 16 L22 16 M12 22 L20 22" fill="none" stroke="#0052CC" stroke-width="1"></path>
                                         </svg>
                                     </template>
                                     
@@ -139,7 +221,7 @@
                                     <template if:true={element.isManualTask}>
                                         <svg viewBox="0 0 60 40" class="element-svg task">
                                             <rect x="2" y="2" width="56" height="36" rx="5" fill="white" stroke="#0052CC" stroke-width="2"></rect>
-                                            <path d="M8 24 L12 16 L22 16 L22 24 Z" fill="none" stroke="#0052CC" stroke-width="1.5"></path>
+                                            <path d="M8 24 L12 18 L16 24 L12 24 L12 28 M18 16 L22 12 L26 16 L22 28" fill="none" stroke="#0052CC" stroke-width="1.5"></path>
                                         </svg>
                                     </template>
                                     
@@ -169,7 +251,87 @@
                                         </svg>
                                     </template>
                                     
-                                    <!-- Exclusive Gateway -->
+                                    <!-- ============================================ -->
+                                    <!-- SALESFORCE FLOW TASKS -->
+                                    <!-- ============================================ -->
+                                    
+                                    <!-- Screen Task -->
+                                    <template if:true={element.isScreenTask}>
+                                        <svg viewBox="0 0 60 40" class="element-svg task">
+                                            <rect x="2" y="2" width="56" height="36" rx="5" fill="white" stroke="#00A1E0" stroke-width="2"></rect>
+                                            <rect x="10" y="8" width="20" height="14" rx="1" fill="none" stroke="#00A1E0" stroke-width="1.5"></rect>
+                                            <rect x="14" y="24" width="12" height="2" fill="#00A1E0"></rect>
+                                            <path d="M20 22 L20 24" stroke="#00A1E0" stroke-width="1.5"></path>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- Record Create Task -->
+                                    <template if:true={element.isRecordCreateTask}>
+                                        <svg viewBox="0 0 60 40" class="element-svg task">
+                                            <rect x="2" y="2" width="56" height="36" rx="5" fill="#C6F6D5" stroke="#22A06B" stroke-width="2"></rect>
+                                            <circle cx="18" cy="20" r="8" fill="none" stroke="#22A06B" stroke-width="1.5"></circle>
+                                            <path d="M18 15 L18 25 M13 20 L23 20" stroke="#22A06B" stroke-width="2" stroke-linecap="round"></path>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- Record Update Task -->
+                                    <template if:true={element.isRecordUpdateTask}>
+                                        <svg viewBox="0 0 60 40" class="element-svg task">
+                                            <rect x="2" y="2" width="56" height="36" rx="5" fill="#BEE3F8" stroke="#0052CC" stroke-width="2"></rect>
+                                            <path d="M10 28 L10 12 L22 12 L22 20 L16 20 L16 28 Z" fill="none" stroke="#0052CC" stroke-width="1.5"></path>
+                                            <path d="M14 16 L14 24 M18 20 L22 20" stroke="#0052CC" stroke-width="1.5"></path>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- Record Delete Task -->
+                                    <template if:true={element.isRecordDeleteTask}>
+                                        <svg viewBox="0 0 60 40" class="element-svg task">
+                                            <rect x="2" y="2" width="56" height="36" rx="5" fill="#FED7D7" stroke="#DE350B" stroke-width="2"></rect>
+                                            <path d="M12 14 L24 14 M14 14 L14 28 L22 28 L22 14 M16 14 L16 11 L20 11 L20 14" fill="none" stroke="#DE350B" stroke-width="1.5"></path>
+                                            <path d="M16 17 L16 25 M20 17 L20 25" stroke="#DE350B" stroke-width="1"></path>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- Record Lookup Task -->
+                                    <template if:true={element.isRecordLookupTask}>
+                                        <svg viewBox="0 0 60 40" class="element-svg task">
+                                            <rect x="2" y="2" width="56" height="36" rx="5" fill="#E9D8FD" stroke="#6554C0" stroke-width="2"></rect>
+                                            <circle cx="16" cy="18" r="6" fill="none" stroke="#6554C0" stroke-width="1.5"></circle>
+                                            <path d="M20 22 L26 28" stroke="#6554C0" stroke-width="2" stroke-linecap="round"></path>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- Assignment Task -->
+                                    <template if:true={element.isAssignmentTask}>
+                                        <svg viewBox="0 0 60 40" class="element-svg task">
+                                            <rect x="2" y="2" width="56" height="36" rx="5" fill="#FEEBC8" stroke="#DD6B20" stroke-width="2"></rect>
+                                            <path d="M10 20 L18 20 M22 20 L26 20" stroke="#DD6B20" stroke-width="2"></path>
+                                            <path d="M18 16 L22 20 L18 24" fill="none" stroke="#DD6B20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- Action Call Task -->
+                                    <template if:true={element.isActionCallTask}>
+                                        <svg viewBox="0 0 60 40" class="element-svg task">
+                                            <rect x="2" y="2" width="56" height="36" rx="5" fill="#FED7E2" stroke="#D53F8C" stroke-width="2"></rect>
+                                            <path d="M12 12 L12 28 L24 20 Z" fill="#D53F8C" stroke="none"></path>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- Loop Task -->
+                                    <template if:true={element.isLoopTask}>
+                                        <svg viewBox="0 0 60 40" class="element-svg task">
+                                            <rect x="2" y="2" width="56" height="36" rx="5" fill="#E9D8FD" stroke="#6554C0" stroke-width="2" stroke-dasharray="4,2"></rect>
+                                            <path d="M12 20 A8 8 0 1 1 12 21" fill="none" stroke="#6554C0" stroke-width="2"></path>
+                                            <path d="M12 16 L12 24 L8 20 Z" fill="#6554C0"></path>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- ============================================ -->
+                                    <!-- GATEWAYS -->
+                                    <!-- ============================================ -->
+                                    
+                                    <!-- Exclusive Gateway (XOR) -->
                                     <template if:true={element.isExclusiveGateway}>
                                         <svg viewBox="0 0 50 50" class="element-svg gateway">
                                             <polygon points="25,2 48,25 25,48 2,25" fill="white" stroke="#FF991F" stroke-width="2"></polygon>
@@ -177,7 +339,7 @@
                                         </svg>
                                     </template>
                                     
-                                    <!-- Parallel Gateway -->
+                                    <!-- Parallel Gateway (AND) -->
                                     <template if:true={element.isParallelGateway}>
                                         <svg viewBox="0 0 50 50" class="element-svg gateway">
                                             <polygon points="25,2 48,25 25,48 2,25" fill="white" stroke="#FF991F" stroke-width="2"></polygon>
@@ -185,7 +347,7 @@
                                         </svg>
                                     </template>
                                     
-                                    <!-- Inclusive Gateway -->
+                                    <!-- Inclusive Gateway (OR) -->
                                     <template if:true={element.isInclusiveGateway}>
                                         <svg viewBox="0 0 50 50" class="element-svg gateway">
                                             <polygon points="25,2 48,25 25,48 2,25" fill="white" stroke="#FF991F" stroke-width="2"></polygon>
@@ -193,12 +355,41 @@
                                         </svg>
                                     </template>
                                     
-                                    <!-- Event Based Gateway -->
+                                    <!-- Event-Based Gateway -->
                                     <template if:true={element.isEventBasedGateway}>
                                         <svg viewBox="0 0 50 50" class="element-svg gateway">
                                             <polygon points="25,2 48,25 25,48 2,25" fill="white" stroke="#FF991F" stroke-width="2"></polygon>
                                             <circle cx="25" cy="25" r="10" fill="none" stroke="#FF991F" stroke-width="2"></circle>
                                             <polygon points="25,17 31,28 19,28" fill="none" stroke="#FF991F" stroke-width="2"></polygon>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- Complex Gateway -->
+                                    <template if:true={element.isComplexGateway}>
+                                        <svg viewBox="0 0 50 50" class="element-svg gateway">
+                                            <polygon points="25,2 48,25 25,48 2,25" fill="white" stroke="#FF991F" stroke-width="2"></polygon>
+                                            <path d="M25 14 L25 36 M14 25 L36 25 M17 17 L33 33 M33 17 L17 33" fill="none" stroke="#FF991F" stroke-width="2"></path>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- ============================================ -->
+                                    <!-- CONTAINERS -->
+                                    <!-- ============================================ -->
+                                    
+                                    <!-- Pool -->
+                                    <template if:true={element.isPool}>
+                                        <svg viewBox="0 0 70 50" class="element-svg container">
+                                            <rect x="2" y="2" width="66" height="46" fill="white" stroke="#505F79" stroke-width="2"></rect>
+                                            <rect x="2" y="2" width="12" height="46" fill="#E2E8F0" stroke="#505F79" stroke-width="1"></rect>
+                                        </svg>
+                                    </template>
+                                    
+                                    <!-- Lane -->
+                                    <template if:true={element.isLane}>
+                                        <svg viewBox="0 0 70 50" class="element-svg container">
+                                            <rect x="2" y="2" width="66" height="46" fill="#F7FAFC" stroke="#CBD5E0" stroke-width="1.5"></rect>
+                                            <rect x="2" y="2" width="12" height="46" fill="#EDF2F7" stroke="#CBD5E0" stroke-width="1"></rect>
+                                            <path d="M2 25 L68 25" stroke="#CBD5E0" stroke-width="1" stroke-dasharray="3,3"></path>
                                         </svg>
                                     </template>
                                     
@@ -217,6 +408,10 @@
                                             <rect x="2" y="2" width="56" height="36" rx="5" fill="white" stroke="#6554C0" stroke-width="4"></rect>
                                         </svg>
                                     </template>
+                                    
+                                    <!-- ============================================ -->
+                                    <!-- DATA & ARTIFACTS -->
+                                    <!-- ============================================ -->
                                     
                                     <!-- Data Object -->
                                     <template if:true={element.isDataObject}>

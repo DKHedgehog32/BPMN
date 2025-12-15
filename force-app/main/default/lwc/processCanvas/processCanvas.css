@@ -87,6 +87,21 @@
 }
 
 /* =========================================================================
+   IMPORTED FLOW TITLE
+   ========================================================================= */
+
+.flow-title-group {
+    pointer-events: none;
+}
+
+.flow-title-text {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    fill: #2D3748;
+}
+
+/* =========================================================================
    BPMN ELEMENTS
    ========================================================================= */
 
@@ -303,6 +318,57 @@
 .legend-label {
     font-size: 12px;
     color: #4A5568;
+}
+
+/* =========================================================================
+   POOL & LANE CONTAINERS
+   ========================================================================= */
+
+.bpmn-element.container-element {
+    cursor: move;
+}
+
+.pool-label,
+.lane-label {
+    font-size: 13px;
+    font-weight: 600;
+    fill: #2D3748;
+}
+
+/* =========================================================================
+   RESIZE HANDLES
+   ========================================================================= */
+
+.resize-handle {
+    cursor: pointer;
+    fill: #3182CE;
+    stroke: #FFFFFF;
+    stroke-width: 1;
+    transition: fill 0.15s ease;
+}
+
+.resize-handle:hover {
+    fill: #2C5282;
+}
+
+.resize-n,
+.resize-s {
+    cursor: ns-resize;
+}
+
+.resize-e,
+.resize-w {
+    cursor: ew-resize;
+}
+
+.resize-ne,
+.resize-sw {
+    cursor: nesw-resize;
+}
+
+.resize-nw,
+.resize-se {
+    cursor: nwse-resize;
 }
 
 /* =========================================================================

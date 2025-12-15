@@ -78,6 +78,14 @@ export default class ProcessProperties extends LightningElement {
     
     @api readOnly = false;
     
+    @api 
+    get importedFlowInfo() {
+        return this._importedFlowInfo;
+    }
+    set importedFlowInfo(value) {
+        this._importedFlowInfo = value ? { ...value } : null;
+    }
+    
     // =========================================================================
     // TRACKED STATE
     // =========================================================================
@@ -85,15 +93,29 @@ export default class ProcessProperties extends LightningElement {
     @track _selectedElement = null;
     @track _selectedConnection = null;
     @track _scoreData = null;
+    @track _importedFlowInfo = null;
     @track showScoreDetails = false;
     
     // Element type display labels
     elementTypeLabels = {
+        // Events
         StartEvent: 'Start Event',
         EndEvent: 'End Event',
         IntermediateEvent: 'Intermediate Event',
         TimerStartEvent: 'Timer Start Event',
         MessageStartEvent: 'Message Start Event',
+        MessageIntermediateCatchEvent: 'Message Catch Event',
+        MessageEndEvent: 'Message End Event',
+        TimerIntermediateEvent: 'Timer Event',
+        SignalStartEvent: 'Signal Start Event',
+        SignalIntermediateEvent: 'Signal Event',
+        SignalEndEvent: 'Signal End Event',
+        ErrorEndEvent: 'Error End Event',
+        ErrorBoundaryEvent: 'Error Boundary Event',
+        TerminateEndEvent: 'Terminate Event',
+        WaitEvent: 'Wait/Pause',
+        
+        // Tasks
         UserTask: 'User Task',
         ServiceTask: 'Service Task',
         ScriptTask: 'Script Task',
@@ -101,12 +123,31 @@ export default class ProcessProperties extends LightningElement {
         BusinessRuleTask: 'Business Rule Task',
         SendTask: 'Send Task',
         ReceiveTask: 'Receive Task',
+        
+        // Salesforce Task Types
+        RecordCreateTask: 'Create Records',
+        RecordUpdateTask: 'Update Records',
+        RecordDeleteTask: 'Delete Records',
+        RecordLookupTask: 'Get Records',
+        AssignmentTask: 'Assignment',
+        ActionCallTask: 'Action',
+        ScreenTask: 'Screen',
+        LoopTask: 'Loop',
+        
+        // Gateways
         ExclusiveGateway: 'Exclusive Gateway (XOR)',
         ParallelGateway: 'Parallel Gateway (AND)',
         InclusiveGateway: 'Inclusive Gateway (OR)',
         EventBasedGateway: 'Event-Based Gateway',
+        ComplexGateway: 'Complex Gateway',
+        
+        // Containers
         SubProcess: 'Sub-Process',
         CallActivity: 'Call Activity',
+        Pool: 'Pool',
+        Lane: 'Lane',
+        
+        // Data & Artifacts
         DataObject: 'Data Object',
         DataStore: 'Data Store',
         TextAnnotation: 'Text Annotation',
@@ -116,6 +157,34 @@ export default class ProcessProperties extends LightningElement {
     // =========================================================================
     // GETTERS - SELECTION STATE
     // =========================================================================
+    
+    get hasImportedFlow() {
+        return !!this._importedFlowInfo?.name;
+    }
+    
+    get importedFlowName() {
+        return this._importedFlowInfo?.label || this._importedFlowInfo?.name || '';
+    }
+    
+    get importedFlowApiName() {
+        return this._importedFlowInfo?.name || '';
+    }
+    
+    get importedFlowType() {
+        const typeMap = {
+            'Flow': 'Screen Flow',
+            'AutoLaunchedFlow': 'Autolaunched Flow',
+            'Workflow': 'Record-Triggered Flow',
+            'CustomEvent': 'Platform Event Flow',
+            'InvocableProcess': 'Invocable Process',
+            'Survey': 'Survey',
+            'ActionCadenceFlow': 'Action Cadence',
+            'Orchestration': 'Orchestration',
+            'TransactionSecurityFlow': 'Transaction Security'
+        };
+        const processType = this._importedFlowInfo?.processType || '';
+        return typeMap[processType] || processType || '';
+    }
     
     get hasSelection() {
         return this._selectedElement || this._selectedConnection;
@@ -176,6 +245,35 @@ export default class ProcessProperties extends LightningElement {
         return this._selectedElement.type.includes('Gateway');
     }
     
+    get showContainerFields() {
+        if (!this._selectedElement) return false;
+        return this._selectedElement.type === 'Pool' || this._selectedElement.type === 'Lane';
+    }
+    
+    get isHorizontalOrientation() {
+        if (!this._selectedElement) return true;
+        return this._selectedElement.orientation !== 'vertical';
+    }
+    
+    get elementWidth() {
+        return this._selectedElement?.width ? Math.round(this._selectedElement.width) : '';
+    }
+    
+    get elementHeight() {
+        return this._selectedElement?.height ? Math.round(this._selectedElement.height) : '';
+    }
+    
+    get orientationOptions() {
+        return [
+            { label: 'Horizontal', value: 'horizontal' },
+            { label: 'Vertical', value: 'vertical' }
+        ];
+    }
+    
+    get selectedOrientation() {
+        return this._selectedElement?.orientation || 'horizontal';
+    }
+    
     get showConditionField() {
         if (!this._selectedConnection) return false;
         return this._selectedConnection.type === 'ConditionalFlow' || 
@@ -212,6 +310,164 @@ export default class ProcessProperties extends LightningElement {
     
     get elementPositionY() {
         return this._selectedElement?.y ? Math.round(this._selectedElement.y) : '';
+    }
+    
+    // =========================================================================
+    // GETTERS - SALESFORCE METADATA
+    // =========================================================================
+    
+    get showSalesforceSection() {
+        if (!this._selectedElement) return false;
+        // Show for tasks, events (except basic start/end), and gateways
+        const type = this._selectedElement.type;
+        return type.includes('Task') || 
+               type.includes('Gateway') ||
+               (type.includes('Event') && !['StartEvent', 'EndEvent'].includes(type)) ||
+               type === 'CallActivity' ||
+               type === 'SubProcess' ||
+               type.includes('Record') ||
+               type.includes('Screen') ||
+               type.includes('Action') ||
+               type.includes('Assignment') ||
+               type.includes('Loop') ||
+               type.includes('Wait');
+    }
+    
+    get isImportedFromSalesforce() {
+        return this._selectedElement?.salesforceMetadata?.isImported || false;
+    }
+    
+    get salesforceApiName() {
+        return this._selectedElement?.salesforceMetadata?.apiName || '';
+    }
+    
+    get salesforceFlowElementType() {
+        return this._selectedElement?.salesforceMetadata?.flowElementType || '';
+    }
+    
+    get salesforceFlowElementTypeLabel() {
+        const type = this._selectedElement?.salesforceMetadata?.flowElementType || '';
+        const labels = {
+            'FlowScreen': 'Screen',
+            'FlowDecision': 'Decision',
+            'FlowRecordCreate': 'Create Records',
+            'FlowRecordUpdate': 'Update Records',
+            'FlowRecordDelete': 'Delete Records',
+            'FlowRecordLookup': 'Get Records',
+            'FlowAssignment': 'Assignment',
+            'FlowActionCall': 'Action',
+            'FlowSubflow': 'Subflow',
+            'FlowLoop': 'Loop',
+            'FlowWait': 'Pause',
+            'FlowStart': 'Start',
+            'FlowEnd': 'End'
+        };
+        return labels[type] || type;
+    }
+    
+    get salesforceActionType() {
+        return this._selectedElement?.salesforceMetadata?.actionType || '';
+    }
+    
+    get salesforceTriggerType() {
+        return this._selectedElement?.salesforceMetadata?.triggerType || '';
+    }
+    
+    get salesforceTriggerTypeLabel() {
+        const type = this._selectedElement?.salesforceMetadata?.triggerType || '';
+        const labels = {
+            'RecordBeforeSave': 'Record - Before Save',
+            'RecordAfterSave': 'Record - After Save',
+            'Scheduled': 'Scheduled',
+            'PlatformEvent': 'Platform Event'
+        };
+        return labels[type] || type || 'None';
+    }
+    
+    get salesforceObjectApiName() {
+        return this._selectedElement?.salesforceMetadata?.objectApiName || 
+               this._selectedElement?.salesforceMetadata?.triggerObject || '';
+    }
+    
+    get salesforceApexClassName() {
+        return this._selectedElement?.salesforceMetadata?.apexClassName || '';
+    }
+    
+    get salesforceLwcComponentName() {
+        return this._selectedElement?.salesforceMetadata?.lwcComponentName || '';
+    }
+    
+    get hasSalesforceObject() {
+        return !!this.salesforceObjectApiName;
+    }
+    
+    get hasSalesforceApex() {
+        return !!this.salesforceApexClassName;
+    }
+    
+    get hasSalesforceLwc() {
+        return !!this.salesforceLwcComponentName;
+    }
+    
+    get salesforceProcessType() {
+        return this._selectedElement?.salesforceMetadata?.processType || '';
+    }
+    
+    get salesforceProcessTypeLabel() {
+        const type = this._selectedElement?.salesforceMetadata?.processType || '';
+        const labels = {
+            'Flow': 'Screen Flow',
+            'AutoLaunchedFlow': 'Auto-Launched Flow',
+            'Workflow': 'Workflow Rule',
+            'CustomEvent': 'Platform Event Flow',
+            'InvocableProcess': 'Invocable Process'
+        };
+        return labels[type] || type || '';
+    }
+    
+    // Action Type options for combobox
+    get actionTypeOptions() {
+        return [
+            { label: '-- Core Actions --', value: '', disabled: true },
+            { label: 'Apex Action', value: 'apex' },
+            { label: 'Flow', value: 'flow' },
+            { label: 'Quick Action', value: 'quickAction' },
+            { label: 'Email Alert', value: 'emailAlert' },
+            { label: 'Send Email', value: 'emailSimple' },
+            { label: 'Submit for Approval', value: 'submit' },
+            
+            { label: '-- Record Operations --', value: '', disabled: true },
+            { label: 'Create Records', value: 'createRecord' },
+            { label: 'Update Records', value: 'updateRecord' },
+            { label: 'Delete Records', value: 'deleteRecord' },
+            { label: 'Get Records', value: 'getRecord' },
+            
+            { label: '-- Communication --', value: '', disabled: true },
+            { label: 'Chatter Post', value: 'chatterPost' },
+            { label: 'Custom Notification', value: 'customNotificationAction' },
+            { label: 'Send Survey', value: 'sendSurveyInvitation' },
+            
+            { label: '-- Slack --', value: '', disabled: true },
+            { label: 'Post to Slack', value: 'slackPostMessage' },
+            { label: 'Create Slack Channel', value: 'slackCreateChannel' },
+            
+            { label: '-- Einstein --', value: '', disabled: true },
+            { label: 'Generate Prompt Response', value: 'generatePromptResponse' },
+            { label: 'Einstein Recommendation', value: 'einsteinRecommendation' }
+        ];
+    }
+    
+    // Trigger Type options for combobox
+    get triggerTypeOptions() {
+        return [
+            { label: 'None', value: '' },
+            { label: 'Record - Before Save', value: 'RecordBeforeSave' },
+            { label: 'Record - After Save', value: 'RecordAfterSave' },
+            { label: 'Scheduled', value: 'Scheduled' },
+            { label: 'Platform Event', value: 'PlatformEvent' },
+            { label: 'Segment', value: 'Segment' },
+            { label: 'Data Cloud Change', value: 'DataCloudDataChange' }
+        ];
     }
     
     // =========================================================================
@@ -524,6 +780,35 @@ export default class ProcessProperties extends LightningElement {
     }
     
     // =========================================================================
+    // EVENT HANDLERS - CONTAINER PROPERTIES (Pool/Lane)
+    // =========================================================================
+    
+    handleOrientationChange(event) {
+        this.dispatchPropertyChange('orientation', event.detail.value);
+        // Also need to swap width/height
+        if (this._selectedElement) {
+            const newWidth = this._selectedElement.height;
+            const newHeight = this._selectedElement.width;
+            this.dispatchPropertyChange('width', newWidth);
+            this.dispatchPropertyChange('height', newHeight);
+        }
+    }
+    
+    handleWidthChange(event) {
+        const value = event.target.value ? parseInt(event.target.value, 10) : null;
+        if (value && value >= 100) {
+            this.dispatchPropertyChange('width', value);
+        }
+    }
+    
+    handleHeightChange(event) {
+        const value = event.target.value ? parseInt(event.target.value, 10) : null;
+        if (value && value >= 80) {
+            this.dispatchPropertyChange('height', value);
+        }
+    }
+    
+    // =========================================================================
     // EVENT HANDLERS - CONNECTION PROPERTIES
     // =========================================================================
     
@@ -537,6 +822,51 @@ export default class ProcessProperties extends LightningElement {
     
     handleIsDefaultChange(event) {
         this.dispatchConnectionChange('isDefault', event.target.checked);
+    }
+    
+    // =========================================================================
+    // EVENT HANDLERS - SALESFORCE METADATA
+    // =========================================================================
+    
+    handleSalesforceApiNameChange(event) {
+        this.dispatchSalesforcePropertyChange('apiName', event.target.value);
+    }
+    
+    handleSalesforceActionTypeChange(event) {
+        this.dispatchSalesforcePropertyChange('actionType', event.detail.value);
+    }
+    
+    handleSalesforceTriggerTypeChange(event) {
+        this.dispatchSalesforcePropertyChange('triggerType', event.detail.value);
+    }
+    
+    handleSalesforceObjectChange(event) {
+        this.dispatchSalesforcePropertyChange('objectApiName', event.target.value);
+    }
+    
+    handleSalesforceApexClassChange(event) {
+        this.dispatchSalesforcePropertyChange('apexClassName', event.target.value);
+    }
+    
+    handleSalesforceLwcChange(event) {
+        this.dispatchSalesforcePropertyChange('lwcComponentName', event.target.value);
+    }
+    
+    /**
+     * Dispatch Salesforce metadata property change
+     * Updates the nested salesforceMetadata object on the element
+     */
+    dispatchSalesforcePropertyChange(property, value) {
+        if (!this._selectedElement) return;
+        
+        // Get current metadata or create new
+        const currentMetadata = this._selectedElement.salesforceMetadata || {};
+        const updatedMetadata = {
+            ...currentMetadata,
+            [property]: value
+        };
+        
+        this.dispatchPropertyChange('salesforceMetadata', updatedMetadata);
     }
     
     // =========================================================================

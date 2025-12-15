@@ -1,0 +1,342 @@
+<!--
+  @description: Salesforce Metadata Selector - Process Modeler Style
+  @author: Dennis van Musschenbroek (DvM) - Cobra CRM B.V.
+  @date: 2024-12-14
+  @version: 2.0.0
+  
+  EXPLANATION:
+  Completely redesigned to match the Process Modeler's design language.
+  Features dark blue header, modern tabs, custom styled table, and 
+  preview panel with consistent styling throughout.
+  
+  CHANGELOG:
+  Version | Date       | Author | Description
+  ---------|------------|--------|------------------------------------------
+  1.0.0   | 2024-12-14 | DvM    | Initial creation - SLDS based
+  2.0.0   | 2024-12-14 | DvM    | Complete redesign to match Process Modeler
+-->
+
+<template>
+    <div class="selector-container">
+        
+        <!-- Header - Dark Blue Toolbar Style -->
+        <div class="selector-header">
+            <lightning-icon icon-name="utility:download" size="small" class="header-icon"></lightning-icon>
+            <h2 class="header-title">Import from Salesforce</h2>
+        </div>
+        
+        <!-- Loading Overlay -->
+        <template if:true={isLoading}>
+            <div class="loading-overlay">
+                <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+            </div>
+        </template>
+        
+        <!-- Tabs -->
+        <div class="tabs-container">
+            <button class={flowsTabClass} data-tab="flows" onclick={handleTabClick}>
+                <lightning-icon icon-name="utility:flow" size="xx-small" class="tab-icon"></lightning-icon>
+                <span>Flows</span>
+            </button>
+            <button class={apexTabClass} data-tab="apex" onclick={handleTabClick}>
+                <lightning-icon icon-name="utility:apex" size="xx-small" class="tab-icon"></lightning-icon>
+                <span>Apex Actions</span>
+            </button>
+            <button class={lwcTabClass} data-tab="lwc" onclick={handleTabClick}>
+                <lightning-icon icon-name="utility:component_customization" size="xx-small" class="tab-icon"></lightning-icon>
+                <span>LWC Components</span>
+            </button>
+        </div>
+        
+        <!-- Search & Filter Bar -->
+        <div class="search-bar">
+            <div class="search-field">
+                <lightning-input
+                    type="search"
+                    label="Search"
+                    placeholder="Search by name..."
+                    value={searchTerm}
+                    onchange={handleSearchChange}
+                    onkeyup={handleSearchKeyUp}
+                    variant="label-hidden">
+                </lightning-input>
+            </div>
+            
+            <!-- Filter dropdown (Flows tab only) -->
+            <template if:true={isFlowsTab}>
+                <div class="filter-field">
+                    <lightning-combobox
+                        label="Filter by Type"
+                        placeholder="All Types"
+                        options={processTypeOptions}
+                        value={selectedProcessType}
+                        onchange={handleProcessTypeChange}
+                        variant="label-hidden">
+                    </lightning-combobox>
+                </div>
+            </template>
+            
+            <button class="btn-refresh" onclick={handleRefresh}>
+                <lightning-icon icon-name="utility:refresh" size="xx-small" class="btn-refresh-icon"></lightning-icon>
+                <span>Refresh</span>
+            </button>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div class="content-area">
+            
+            <!-- Table Panel -->
+            <div class="table-panel">
+                <div class="table-container">
+                    
+                    <!-- Flows Table -->
+                    <template if:true={isFlowsTab}>
+                        <template if:true={hasFlows}>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;">#</th>
+                                        <th>Label</th>
+                                        <th>API Name</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={flows} for:item="flow" for:index="index">
+                                        <tr key={flow.id} 
+                                            class={flow.rowClass}
+                                            data-id={flow.id}
+                                            onclick={handleFlowRowClick}>
+                                            <td class="row-number">{flow.rowNumber}</td>
+                                            <td>
+                                                <div class="type-icon">
+                                                    <span class="type-icon-badge flow">
+                                                        <lightning-icon icon-name="utility:flow" size="xx-small"></lightning-icon>
+                                                    </span>
+                                                    <span class="text-truncate" title={flow.label}>{flow.label}</span>
+                                                </div>
+                                            </td>
+                                            <td class="text-truncate" title={flow.apiName}>{flow.apiName}</td>
+                                            <td>{flow.processType}</td>
+                                            <td>
+                                                <span class={flow.statusClass}>{flow.status}</span>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </template>
+                        <template if:false={hasFlows}>
+                            <div class="empty-state">
+                                <lightning-icon icon-name="utility:flow" size="large" class="empty-state-icon"></lightning-icon>
+                                <h3 class="empty-state-title">No Flows Found</h3>
+                                <p class="empty-state-text">Try adjusting your search or filters.</p>
+                            </div>
+                        </template>
+                    </template>
+                    
+                    <!-- Apex Table -->
+                    <template if:true={isApexTab}>
+                        <template if:true={hasApexClasses}>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;">#</th>
+                                        <th>Class Name</th>
+                                        <th>Method</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={apexClasses} for:item="apex" for:index="index">
+                                        <tr key={apex.id}
+                                            class={apex.rowClass}
+                                            data-id={apex.id}
+                                            onclick={handleApexRowClick}>
+                                            <td class="row-number">{apex.rowNumber}</td>
+                                            <td>
+                                                <div class="type-icon">
+                                                    <span class="type-icon-badge apex">
+                                                        <lightning-icon icon-name="utility:apex" size="xx-small"></lightning-icon>
+                                                    </span>
+                                                    <span class="text-truncate" title={apex.className}>{apex.className}</span>
+                                                </div>
+                                            </td>
+                                            <td class="text-truncate" title={apex.methodName}>{apex.methodName}</td>
+                                            <td class="text-truncate" title={apex.description}>{apex.description}</td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </template>
+                        <template if:false={hasApexClasses}>
+                            <div class="empty-state">
+                                <lightning-icon icon-name="utility:apex" size="large" class="empty-state-icon"></lightning-icon>
+                                <h3 class="empty-state-title">No Invocable Apex Classes</h3>
+                                <p class="empty-state-text">Only classes with @InvocableMethod annotation are shown.</p>
+                            </div>
+                        </template>
+                    </template>
+                    
+                    <!-- LWC Table -->
+                    <template if:true={isLwcTab}>
+                        <template if:true={hasLwcComponents}>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;">#</th>
+                                        <th>Component Name</th>
+                                        <th>Target</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template for:each={lwcComponents} for:item="lwc" for:index="index">
+                                        <tr key={lwc.id}
+                                            class={lwc.rowClass}
+                                            data-id={lwc.id}
+                                            onclick={handleLwcRowClick}>
+                                            <td class="row-number">{lwc.rowNumber}</td>
+                                            <td>
+                                                <div class="type-icon">
+                                                    <span class="type-icon-badge lwc">
+                                                        <lightning-icon icon-name="utility:component_customization" size="xx-small"></lightning-icon>
+                                                    </span>
+                                                    <span class="text-truncate" title={lwc.componentName}>{lwc.componentName}</span>
+                                                </div>
+                                            </td>
+                                            <td>{lwc.flowTarget}</td>
+                                            <td class="text-truncate" title={lwc.description}>{lwc.description}</td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </template>
+                        <template if:false={hasLwcComponents}>
+                            <div class="empty-state">
+                                <lightning-icon icon-name="utility:component_customization" size="large" class="empty-state-icon"></lightning-icon>
+                                <h3 class="empty-state-title">No Flow Components</h3>
+                                <p class="empty-state-text">Only LWCs with Flow targets are shown.</p>
+                            </div>
+                        </template>
+                    </template>
+                    
+                </div>
+            </div>
+            
+            <!-- Preview Panel -->
+            <div class="preview-panel">
+                <div class="preview-header">
+                    <lightning-icon icon-name="utility:preview" size="x-small" class="preview-icon"></lightning-icon>
+                    <h3 class="preview-title">Preview</h3>
+                </div>
+                
+                <div class="preview-content">
+                    <template if:true={hasSelection}>
+                        <div class="preview-details">
+                            <!-- Flow Preview -->
+                            <template if:true={selectedFlow}>
+                                <h4 class="preview-name">{selectedFlow.label}</h4>
+                                <code class="preview-api-name">{selectedFlow.apiName}</code>
+                                
+                                <div class="preview-section">
+                                    <h5 class="preview-section-title">Details</h5>
+                                    <div class="preview-field">
+                                        <span class="preview-field-label">Type</span>
+                                        <span class="preview-field-value">{selectedFlow.processType}</span>
+                                    </div>
+                                    <div class="preview-field">
+                                        <span class="preview-field-label">Status</span>
+                                        <span class="preview-field-value">{selectedFlow.status}</span>
+                                    </div>
+                                    <template if:true={selectedFlow.triggerType}>
+                                        <div class="preview-field">
+                                            <span class="preview-field-label">Trigger</span>
+                                            <span class="preview-field-value">{selectedFlow.triggerType}</span>
+                                        </div>
+                                    </template>
+                                    <template if:true={selectedFlow.triggerObject}>
+                                        <div class="preview-field">
+                                            <span class="preview-field-label">Object</span>
+                                            <span class="preview-field-value">{selectedFlow.triggerObject}</span>
+                                        </div>
+                                    </template>
+                                </div>
+                                
+                                <template if:true={selectedFlow.description}>
+                                    <div class="preview-section">
+                                        <h5 class="preview-section-title">Description</h5>
+                                        <p class="preview-description">{selectedFlow.description}</p>
+                                    </div>
+                                </template>
+                            </template>
+                            
+                            <!-- Apex Preview -->
+                            <template if:true={selectedApex}>
+                                <h4 class="preview-name">{selectedApex.className}</h4>
+                                <code class="preview-api-name">{selectedApex.methodName}</code>
+                                
+                                <div class="preview-section">
+                                    <h5 class="preview-section-title">Method Details</h5>
+                                    <div class="preview-field">
+                                        <span class="preview-field-label">Label</span>
+                                        <span class="preview-field-value">{selectedApex.label}</span>
+                                    </div>
+                                    <template if:true={selectedApex.description}>
+                                        <div class="preview-field">
+                                            <span class="preview-field-label">Description</span>
+                                            <span class="preview-field-value">{selectedApex.description}</span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            
+                            <!-- LWC Preview -->
+                            <template if:true={selectedLwc}>
+                                <h4 class="preview-name">{selectedLwc.componentName}</h4>
+                                <code class="preview-api-name">c-{selectedLwc.componentName}</code>
+                                
+                                <div class="preview-section">
+                                    <h5 class="preview-section-title">Component Details</h5>
+                                    <div class="preview-field">
+                                        <span class="preview-field-label">Flow Target</span>
+                                        <span class="preview-field-value">{selectedLwc.flowTarget}</span>
+                                    </div>
+                                    <template if:true={selectedLwc.description}>
+                                        <div class="preview-field">
+                                            <span class="preview-field-label">Description</span>
+                                            <span class="preview-field-value">{selectedLwc.description}</span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                    
+                    <template if:false={hasSelection}>
+                        <div class="preview-empty">
+                            <lightning-icon icon-name="utility:touch_action" size="large" class="preview-empty-icon"></lightning-icon>
+                            <p class="preview-empty-text">Select an item to preview</p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            
+        </div>
+        
+        <!-- Footer -->
+        <div class="selector-footer">
+            <span class="footer-info">{footerInfoText}</span>
+            
+            <div class="footer-actions">
+                <button class="btn-cancel" onclick={handleCancel}>Cancel</button>
+                <button class="btn-convert" onclick={handleConvert} disabled={convertButtonDisabled}>
+                    <lightning-icon icon-name="utility:sync" size="xx-small" class="btn-convert-icon"></lightning-icon>
+                    <span>Convert to BPMN</span>
+                </button>
+            </div>
+        </div>
+        
+    </div>
+</template>

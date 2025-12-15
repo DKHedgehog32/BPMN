@@ -79,6 +79,18 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
     @track newProcessName = '';
     @track newProcessDescription = '';
     @track scoreData = null; // Process Quality Score data
+    @track showImportModal = false; // Import modal visibility
+    @track importedFlowInfo = null; // Imported Salesforce Flow metadata
+    
+    // Import source selection state
+    @track importSource = null; // 'xml' or 'org'
+    @track xmlFile = null; // Selected XML file
+    @track xmlFileName = '';
+    @track xmlFileSize = '';
+    @track xmlParseError = null;
+    @track xmlFlowPreview = null; // Parsed flow preview data
+    @track xmlFlowData = null; // Full parsed flow data for import
+    @track isDraggingXml = false;
     
     // Auto-save timer
     autoSaveTimer = null;
@@ -183,6 +195,34 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
     
     get containerClass() {
         return `modeler-container ${this.isLoading ? 'loading' : ''}`;
+    }
+    
+    // Import modal state getters
+    get showImportSourceSelected() {
+        return this.importSource !== null;
+    }
+    
+    get showXmlImport() {
+        return this.importSource === 'xml';
+    }
+    
+    get showOrgImport() {
+        return this.importSource === 'org';
+    }
+    
+    get xmlFileSelected() {
+        return !!this.xmlFile;
+    }
+    
+    get xmlImportDisabled() {
+        return !this.xmlFlowData;
+    }
+    
+    get xmlUploadAreaClass() {
+        let classes = 'xml-upload-area';
+        if (this.isDraggingXml) classes += ' xml-upload-area-dragging';
+        if (this.xmlFileSelected) classes += ' xml-upload-area-selected';
+        return classes;
     }
     
     get saveButtonDisabled() {
@@ -591,6 +631,603 @@ export default class ProcessModeler extends NavigationMixin(LightningElement) {
     handleVersionHistory() {
         // TODO: Implement version history
         this.showToast('Info', 'Version history feature coming soon', 'info');
+    }
+    
+    // =========================================================================
+    // SALESFORCE IMPORT HANDLERS
+    // =========================================================================
+    
+    /**
+     * @description Open the import modal (shows source selection)
+     */
+    handleImportFromSalesforce() {
+        this.showImportModal = true;
+        this.importSource = null; // Reset to show source selection
+        this.resetXmlState();
+    }
+    
+    /**
+     * @description Close the import modal and reset state
+     */
+    handleImportModalClose() {
+        this.showImportModal = false;
+        this.importSource = null;
+        this.resetXmlState();
+    }
+    
+    /**
+     * @description Go back to source selection from XML or Org import
+     */
+    handleBackToSourceSelection() {
+        this.importSource = null;
+        this.resetXmlState();
+    }
+    
+    /**
+     * @description Select XML file import
+     */
+    handleSelectXmlImport() {
+        this.importSource = 'xml';
+    }
+    
+    /**
+     * @description Select Salesforce Org import
+     */
+    handleSelectOrgImport() {
+        this.importSource = 'org';
+    }
+    
+    /**
+     * @description Handle cancel from Org import - go back to source selection
+     */
+    handleOrgImportCancel() {
+        this.importSource = null; // Go back to source selection
+    }
+    
+    /**
+     * @description Reset XML upload state
+     */
+    resetXmlState() {
+        this.xmlFile = null;
+        this.xmlFileName = '';
+        this.xmlFileSize = '';
+        this.xmlParseError = null;
+        this.xmlFlowPreview = null;
+        this.xmlFlowData = null;
+        this.isDraggingXml = false;
+    }
+    
+    /**
+     * @description Handle drag over for XML file upload
+     */
+    handleXmlDragOver(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.isDraggingXml = true;
+    }
+    
+    /**
+     * @description Handle drag leave for XML file upload
+     */
+    handleXmlDragLeave(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.isDraggingXml = false;
+    }
+    
+    /**
+     * @description Handle file drop for XML upload
+     */
+    handleXmlDrop(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.isDraggingXml = false;
+        
+        const files = event.dataTransfer?.files;
+        if (files && files.length > 0) {
+            this.processXmlFile(files[0]);
+        }
+    }
+    
+    /**
+     * @description Handle file selection via browse button
+     */
+    handleXmlFileSelect(event) {
+        const files = event.target.files;
+        if (files && files.length > 0) {
+            this.processXmlFile(files[0]);
+        }
+    }
+    
+    /**
+     * @description Remove selected XML file
+     */
+    handleXmlFileRemove() {
+        this.resetXmlState();
+    }
+    
+    /**
+     * @description Process the selected XML file
+     */
+    processXmlFile(file) {
+        // Validate file type
+        if (!file.name.endsWith('.xml') && !file.name.endsWith('.flow-meta.xml')) {
+            this.xmlParseError = 'Please select a valid XML file (.xml or .flow-meta.xml)';
+            return;
+        }
+        
+        this.xmlFile = file;
+        this.xmlFileName = file.name;
+        this.xmlFileSize = this.formatFileSize(file.size);
+        this.xmlParseError = null;
+        this.xmlFlowPreview = null;
+        this.xmlFlowData = null;
+        
+        // Read and parse the file
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const xmlContent = e.target.result;
+                this.parseXmlContent(xmlContent);
+            } catch (error) {
+                this.xmlParseError = 'Error reading file: ' + error.message;
+            }
+        };
+        reader.onerror = () => {
+            this.xmlParseError = 'Error reading file';
+        };
+        reader.readAsText(file);
+    }
+    
+    /**
+     * @description Format file size for display
+     */
+    formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' bytes';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    
+    /**
+     * @description Parse XML content and extract flow data
+     */
+    parseXmlContent(xmlContent) {
+        try {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlContent, 'text/xml');
+            
+            // Check for parse errors
+            const parseError = xmlDoc.querySelector('parsererror');
+            if (parseError) {
+                this.xmlParseError = 'Invalid XML format: ' + parseError.textContent.substring(0, 100);
+                return;
+            }
+            
+            // Find the Flow element (handle namespace)
+            const flowElement = xmlDoc.querySelector('Flow') || xmlDoc.getElementsByTagName('Flow')[0];
+            if (!flowElement) {
+                this.xmlParseError = 'No Flow element found in XML. Please ensure this is a Salesforce Flow file.';
+                return;
+            }
+            
+            // Extract flow metadata
+            const flowData = this.extractFlowDataFromXml(flowElement, xmlDoc);
+            
+            // Store for import
+            this.xmlFlowData = flowData;
+            
+            // Create preview
+            this.xmlFlowPreview = {
+                label: flowData.label || flowData.apiName || 'Unnamed Flow',
+                apiName: flowData.apiName || flowData.fullName || this.xmlFileName.replace('.flow-meta.xml', '').replace('.xml', ''),
+                processType: flowData.processType || 'Unknown',
+                elementCount: this.countFlowElements(flowData)
+            };
+            
+        } catch (error) {
+            console.error('XML parse error:', error);
+            this.xmlParseError = 'Error parsing Flow XML: ' + error.message;
+        }
+    }
+    
+    /**
+     * @description Extract flow data from XML document
+     */
+    extractFlowDataFromXml(flowElement, xmlDoc) {
+        const getText = (parent, tagName) => {
+            const el = parent.querySelector(tagName) || parent.getElementsByTagName(tagName)[0];
+            return el?.textContent || '';
+        };
+        
+        const getAll = (parent, tagName) => {
+            return Array.from(parent.querySelectorAll(tagName) || parent.getElementsByTagName(tagName));
+        };
+        
+        const flowData = {
+            apiName: getText(flowElement, 'apiName') || getText(flowElement, 'fullName'),
+            label: getText(flowElement, 'label'),
+            processType: getText(flowElement, 'processType'),
+            description: getText(flowElement, 'description'),
+            start: {},
+            decisions: [],
+            assignments: [],
+            recordCreates: [],
+            recordUpdates: [],
+            recordDeletes: [],
+            recordLookups: [],
+            screens: [],
+            actionCalls: [],
+            subflows: [],
+            loops: [],
+            waits: []
+        };
+        
+        // Parse start element
+        const startEl = flowElement.querySelector('start') || flowElement.getElementsByTagName('start')[0];
+        if (startEl) {
+            flowData.start = {
+                triggerType: getText(startEl, 'triggerType'),
+                object: getText(startEl, 'object'),
+                connector: {
+                    targetReference: getText(startEl, 'connector > targetReference')
+                }
+            };
+        }
+        
+        // Parse decisions
+        getAll(flowElement, 'decisions').forEach(el => {
+            const rules = [];
+            getAll(el, 'rules').forEach(ruleEl => {
+                rules.push({
+                    name: getText(ruleEl, 'name'),
+                    label: getText(ruleEl, 'label'),
+                    connector: {
+                        targetReference: getText(ruleEl, 'connector > targetReference')
+                    }
+                });
+            });
+            
+            flowData.decisions.push({
+                name: getText(el, 'name'),
+                label: getText(el, 'label'),
+                rules: rules,
+                defaultConnector: {
+                    targetReference: getText(el, 'defaultConnector > targetReference')
+                }
+            });
+        });
+        
+        // Parse assignments
+        getAll(flowElement, 'assignments').forEach(el => {
+            flowData.assignments.push({
+                name: getText(el, 'name'),
+                label: getText(el, 'label'),
+                connector: {
+                    targetReference: getText(el, 'connector > targetReference')
+                }
+            });
+        });
+        
+        // Parse recordCreates
+        getAll(flowElement, 'recordCreates').forEach(el => {
+            flowData.recordCreates.push({
+                name: getText(el, 'name'),
+                label: getText(el, 'label'),
+                object: getText(el, 'object'),
+                connector: {
+                    targetReference: getText(el, 'connector > targetReference')
+                },
+                faultConnector: {
+                    targetReference: getText(el, 'faultConnector > targetReference')
+                }
+            });
+        });
+        
+        // Parse recordUpdates
+        getAll(flowElement, 'recordUpdates').forEach(el => {
+            flowData.recordUpdates.push({
+                name: getText(el, 'name'),
+                label: getText(el, 'label'),
+                object: getText(el, 'object'),
+                connector: {
+                    targetReference: getText(el, 'connector > targetReference')
+                },
+                faultConnector: {
+                    targetReference: getText(el, 'faultConnector > targetReference')
+                }
+            });
+        });
+        
+        // Parse recordDeletes
+        getAll(flowElement, 'recordDeletes').forEach(el => {
+            flowData.recordDeletes.push({
+                name: getText(el, 'name'),
+                label: getText(el, 'label'),
+                object: getText(el, 'object'),
+                connector: {
+                    targetReference: getText(el, 'connector > targetReference')
+                },
+                faultConnector: {
+                    targetReference: getText(el, 'faultConnector > targetReference')
+                }
+            });
+        });
+        
+        // Parse recordLookups
+        getAll(flowElement, 'recordLookups').forEach(el => {
+            flowData.recordLookups.push({
+                name: getText(el, 'name'),
+                label: getText(el, 'label'),
+                object: getText(el, 'object'),
+                connector: {
+                    targetReference: getText(el, 'connector > targetReference')
+                },
+                faultConnector: {
+                    targetReference: getText(el, 'faultConnector > targetReference')
+                }
+            });
+        });
+        
+        // Parse screens
+        getAll(flowElement, 'screens').forEach(el => {
+            flowData.screens.push({
+                name: getText(el, 'name'),
+                label: getText(el, 'label'),
+                connector: {
+                    targetReference: getText(el, 'connector > targetReference')
+                }
+            });
+        });
+        
+        // Parse actionCalls
+        getAll(flowElement, 'actionCalls').forEach(el => {
+            flowData.actionCalls.push({
+                name: getText(el, 'name'),
+                label: getText(el, 'label'),
+                actionName: getText(el, 'actionName'),
+                actionType: getText(el, 'actionType'),
+                connector: {
+                    targetReference: getText(el, 'connector > targetReference')
+                },
+                faultConnector: {
+                    targetReference: getText(el, 'faultConnector > targetReference')
+                }
+            });
+        });
+        
+        // Parse subflows
+        getAll(flowElement, 'subflows').forEach(el => {
+            flowData.subflows.push({
+                name: getText(el, 'name'),
+                label: getText(el, 'label'),
+                flowName: getText(el, 'flowName'),
+                connector: {
+                    targetReference: getText(el, 'connector > targetReference')
+                }
+            });
+        });
+        
+        // Parse loops
+        getAll(flowElement, 'loops').forEach(el => {
+            flowData.loops.push({
+                name: getText(el, 'name'),
+                label: getText(el, 'label'),
+                nextValueConnector: {
+                    targetReference: getText(el, 'nextValueConnector > targetReference')
+                },
+                noMoreValuesConnector: {
+                    targetReference: getText(el, 'noMoreValuesConnector > targetReference')
+                }
+            });
+        });
+        
+        // Parse waits
+        getAll(flowElement, 'waits').forEach(el => {
+            flowData.waits.push({
+                name: getText(el, 'name'),
+                label: getText(el, 'label'),
+                defaultConnector: {
+                    targetReference: getText(el, 'defaultConnector > targetReference')
+                }
+            });
+        });
+        
+        return flowData;
+    }
+    
+    /**
+     * @description Count total flow elements for preview
+     */
+    countFlowElements(flowData) {
+        let count = 0;
+        ['decisions', 'assignments', 'recordCreates', 'recordUpdates', 'recordDeletes', 
+         'recordLookups', 'screens', 'actionCalls', 'subflows', 'loops', 'waits'].forEach(key => {
+            if (flowData[key] && Array.isArray(flowData[key])) {
+                count += flowData[key].length;
+            }
+        });
+        return count;
+    }
+    
+    /**
+     * @description Import the parsed XML flow data
+     */
+    handleXmlImport() {
+        if (!this.xmlFlowData) {
+            this.showToast('Error', 'No flow data to import', 'error');
+            return;
+        }
+        
+        try {
+            const canvas = this.template.querySelector('c-process-canvas');
+            if (!canvas) {
+                this.showToast('Error', 'Canvas not available', 'error');
+                return;
+            }
+            
+            // Store imported flow info for properties panel
+            this.importedFlowInfo = {
+                name: this.xmlFlowData.apiName || this.xmlFileName,
+                label: this.xmlFlowData.label || this.xmlFlowData.apiName || 'Imported Flow',
+                processType: this.xmlFlowData.processType || ''
+            };
+            
+            // Import into canvas
+            const result = canvas.importFromSalesforce(this.xmlFlowData, {
+                clearCanvas: true,
+                autoLayout: true
+            });
+            
+            this.showToast(
+                'Success', 
+                `Imported ${result.elements.length} elements and ${result.connections.length} connections from "${this.xmlFileName}"`,
+                'success'
+            );
+            
+            // Mark as having changes
+            this.hasUnsavedChanges = true;
+            
+            // Close modal
+            this.handleImportModalClose();
+            
+        } catch (error) {
+            console.error('XML import error:', error);
+            this.showToast('Error', 'Failed to import: ' + error.message, 'error');
+        }
+    }
+    
+    /**
+     * @description Handle the convert event from salesforceMetadataSelector
+     * Receives the Flow/Apex/LWC metadata and converts to BPMN
+     */
+    handleImportConvert(event) {
+        const { type, item, previewData } = event.detail;
+        
+        try {
+            const canvas = this.template.querySelector('c-process-canvas');
+            if (!canvas) {
+                this.showToast('Error', 'Canvas not available', 'error');
+                return;
+            }
+            
+            if (type === 'flow') {
+                // Check if we have flow metadata to convert
+                if (!previewData?.flowXml) {
+                    this.showToast(
+                        'Error', 
+                        'Unable to retrieve Flow metadata. Please ensure you have permission to access the Tooling API and try again.',
+                        'error'
+                    );
+                    return;
+                }
+                
+                // Parse Flow XML/JSON to data for the canvas import method
+                const flowData = this.parseFlowMetadata(previewData);
+                
+                // Store imported flow info for properties panel
+                this.importedFlowInfo = {
+                    name: flowData.apiName || flowData.fullName || item.name,
+                    label: flowData.label || item.label || item.name,
+                    processType: flowData.processType || ''
+                };
+                
+                // Import into canvas
+                const result = canvas.importFromSalesforce(flowData, {
+                    clearCanvas: true,
+                    autoLayout: true
+                });
+                
+                this.showToast(
+                    'Success', 
+                    `Imported ${result.elements.length} elements and ${result.connections.length} connections from "${item.label}"`,
+                    'success'
+                );
+                
+                // Mark as having changes
+                this.hasUnsavedChanges = true;
+                
+            } else if (type === 'apex') {
+                // Create a single ServiceTask for the Apex action
+                const elementId = canvas.addElement('ServiceTask', 300, 200, previewData?.invocableLabel || item.name, {
+                    apiName: item.name,
+                    flowElementType: 'FlowActionCall',
+                    actionType: 'apex',
+                    apexClassName: item.name,
+                    apexMethodName: previewData?.invocableMethodName || '',
+                    isImported: true
+                });
+                
+                this.showToast('Success', `Added Apex action "${item.name}" to canvas`, 'success');
+                this.hasUnsavedChanges = true;
+                
+            } else if (type === 'lwc') {
+                // Create a ScreenTask for the LWC component
+                const elementId = canvas.addElement('ScreenTask', 300, 200, previewData?.masterLabel || item.developerName, {
+                    apiName: item.developerName,
+                    flowElementType: 'FlowScreen',
+                    lwcComponentName: item.developerName,
+                    isImported: true
+                });
+                
+                this.showToast('Success', `Added LWC screen "${item.developerName}" to canvas`, 'success');
+                this.hasUnsavedChanges = true;
+            }
+            
+            // Close modal
+            this.showImportModal = false;
+            
+        } catch (error) {
+            console.error('Import error:', error);
+            this.showToast('Error', 'Failed to import: ' + this.parseError(error), 'error');
+        }
+    }
+    
+    /**
+     * @description Parse Flow metadata from preview data
+     * Converts the Tooling API response to a format usable by canvas.importFromSalesforce
+     */
+    parseFlowMetadata(previewData) {
+        // If flowXml is already JSON (from Tooling API Metadata field), use directly
+        if (typeof previewData.flowXml === 'object') {
+            return {
+                ...previewData.flowXml,
+                apiName: previewData.apiName,
+                label: previewData.label
+            };
+        }
+        
+        // If it's XML string, parse it
+        // Note: For full XML parsing, you might need a dedicated parser
+        // This is a simplified approach assuming JSON from Tooling API
+        try {
+            const parsed = JSON.parse(previewData.flowXml);
+            return {
+                ...parsed,
+                apiName: previewData.apiName,
+                label: previewData.label
+            };
+        } catch (e) {
+            // Return basic structure if parsing fails
+            return {
+                apiName: previewData.apiName,
+                label: previewData.label,
+                processType: previewData.processType,
+                start: {
+                    triggerType: ''
+                }
+            };
+        }
+    }
+    
+    /**
+     * @description Handle flow imported event from canvas
+     */
+    handleFlowImported(event) {
+        const { elementCount, connectionCount, metadata } = event.detail;
+        console.log(`Flow imported: ${elementCount} elements, ${connectionCount} connections`, metadata);
+        
+        // Recalculate score
+        this.calculateInitialScore();
     }
     
     // =========================================================================
