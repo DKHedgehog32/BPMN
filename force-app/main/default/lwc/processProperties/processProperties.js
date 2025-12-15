@@ -585,6 +585,22 @@ export default class ProcessProperties extends LightningElement {
         return this._scoreData?.dimensions?.handover || 0;
     }
     
+    // Check if handover is estimated (no real lane data)
+    get isHandoverEstimated() {
+        return this._scoreData?.handoverComplexity?.isEstimated || false;
+    }
+    
+    get handoverEstimatedLabel() {
+        return this.isHandoverEstimated ? '*' : '';
+    }
+    
+    get handoverTooltip() {
+        if (this.isHandoverEstimated) {
+            return 'Handover (estimated from element types - no lane data available)';
+        }
+        return 'Role transitions - Signavio';
+    }
+    
     // Weighted CFC (includes nesting depth)
     get scoreWeightedCFC() {
         return this._scoreData?.weightedCfc || 0;

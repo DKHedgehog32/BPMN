@@ -1490,6 +1490,11 @@ export default class ProcessCanvas extends LightningElement {
     /**
      * Calculate handover complexity based on role transitions
      * Uses element.assignedRole or element.lane property
+     * 
+     * IMPROVED: When no lane data exists, estimates handover based on:
+     * - Element type transitions (Screen → Action = user → system handover)
+     * - Record operation changes (different objects = potential handover)
+     * - Subflow calls (always a handover to another process)
      */
     calculateHandoverComplexity() {
         let handoverScore = 0;
@@ -1501,6 +1506,13 @@ export default class ProcessCanvas extends LightningElement {
             el.type.includes('Task') || el.type === 'SubProcess' || el.type === 'CallActivity'
         );
         
+        // Check if we have actual role/lane data
+        let hasRealRoleData = false;
+        this.elements.forEach(el => {
+            if (el.assignedRole && el.assignedRole !== 'default') hasRealRoleData = true;
+            if (el.lane && el.lane !== 'default') hasRealRoleData = true;
+        });
+        
         // For each connection between activities, check role change
         this.connections.forEach(conn => {
             const source = this.elements.find(el => el.id === conn.sourceId);
@@ -1508,58 +1520,256 @@ export default class ProcessCanvas extends LightningElement {
             
             if (!source || !target) return;
             
-            // Get roles (use assignedRole, lane, or 'default')
-            const sourceRole = source.assignedRole || source.lane || 'default';
-            const targetRole = target.assignedRole || target.lane || 'default';
-            
-            // Skip if both are default (no role info)
-            if (sourceRole === 'default' && targetRole === 'default') return;
-            
-            // Check for handover
-            if (sourceRole !== targetRole && targetRole !== 'default') {
-                if (!seenRoles.has(targetRole)) {
-                    // New role - 1.5 points
-                    handoverScore += 1.5;
-                    seenRoles.add(targetRole);
+            if (hasRealRoleData) {
+                // Original logic: Use actual role/lane data
+                const sourceRole = source.assignedRole || source.lane || 'default';
+                const targetRole = target.assignedRole || target.lane || 'default';
+                
+                // Skip if both are default (no role info)
+                if (sourceRole === 'default' && targetRole === 'default') return;
+                
+                // Check for handover
+                if (sourceRole !== targetRole && targetRole !== 'default') {
+                    if (!seenRoles.has(targetRole)) {
+                        handoverScore += 1.5;
+                        seenRoles.add(targetRole);
+                        transitions.push({
+                            from: sourceRole,
+                            to: targetRole,
+                            type: 'new',
+                            points: 1.5
+                        });
+                    } else {
+                        handoverScore += 1.0;
+                        transitions.push({
+                            from: sourceRole,
+                            to: targetRole,
+                            type: 'return',
+                            points: 1.0
+                        });
+                    }
+                }
+                
+                if (sourceRole !== 'default') {
+                    seenRoles.add(sourceRole);
+                }
+            } else {
+                // IMPROVED: Estimate handover from element type transitions
+                const sourceType = this.getElementCategory(source);
+                const targetType = this.getElementCategory(target);
+                
+                // Handover occurs when switching between categories
+                if (sourceType !== targetType && sourceType !== 'other' && targetType !== 'other') {
+                    const transitionKey = `${sourceType}->${targetType}`;
+                    
+                    // Weight different transitions
+                    let points = 0;
+                    if (sourceType === 'user' && targetType === 'system') {
+                        points = 0.8; // User submits, system processes
+                    } else if (sourceType === 'system' && targetType === 'user') {
+                        points = 1.0; // System result needs user action
+                    } else if (targetType === 'external') {
+                        points = 1.5; // Calling external system/subflow
+                    } else if (sourceType === 'external') {
+                        points = 0.5; // Returning from external
+                    } else {
+                        points = 0.5; // Other transitions
+                    }
+                    
+                    handoverScore += points;
                     transitions.push({
-                        from: sourceRole,
-                        to: targetRole,
-                        type: 'new',
-                        points: 1.5
-                    });
-                } else {
-                    // Returning to known role - 1.0 points
-                    handoverScore += 1.0;
-                    transitions.push({
-                        from: sourceRole,
-                        to: targetRole,
-                        type: 'return',
-                        points: 1.0
+                        from: sourceType,
+                        to: targetType,
+                        sourceElement: source.name,
+                        targetElement: target.name,
+                        type: 'estimated',
+                        points
                     });
                 }
             }
-            
-            // Track source role
-            if (sourceRole !== 'default') {
-                seenRoles.add(sourceRole);
-            }
         });
         
-        // Normalize to 0-10 scale (Signavio: 1.5 = min, 10 = max)
-        // If base score <= 1.5: normalized = 0
-        // If base score >= 10: normalized = 10
+        // Also count subflows/call activities as handovers (always)
+        const subflowCount = this.elements.filter(el => 
+            el.type === 'SubProcess' || 
+            el.type === 'CallActivity' ||
+            el.flowElementType === 'FlowSubflow'
+        ).length;
+        
+        if (subflowCount > 0 && !hasRealRoleData) {
+            handoverScore += subflowCount * 1.5;
+            transitions.push({
+                type: 'subflow',
+                count: subflowCount,
+                points: subflowCount * 1.5
+            });
+        }
+        
+        // Normalize to 0-10 scale
         let normalizedScore = 0;
         if (handoverScore > 1.5) {
             normalizedScore = Math.min(10, ((handoverScore - 1.5) / 8.5) * 10);
         }
         
         return {
-            baseScore: handoverScore,
+            baseScore: Math.round(handoverScore * 10) / 10,
             normalizedScore: Math.round(normalizedScore * 10) / 10,
             uniqueRoles: seenRoles.size,
             transitions,
-            hasRoleData: seenRoles.size > 0 && !seenRoles.has('default')
+            hasRoleData: hasRealRoleData,
+            isEstimated: !hasRealRoleData && transitions.length > 0
         };
+    }
+    
+    /**
+     * Categorize element by its likely "actor" for handover estimation
+     * - user: Screens, user tasks, manual tasks
+     * - system: Automated tasks, record operations, assignments
+     * - external: Subflows, call activities, external services
+     */
+    getElementCategory(element) {
+        if (!element) return 'other';
+        
+        const type = element.type || '';
+        const flowType = element.flowElementType || '';
+        
+        // User interaction elements
+        if (type === 'UserTask' || type === 'ManualTask' || type === 'ScreenTask' ||
+            flowType === 'FlowScreen' || flowType.includes('Screen')) {
+            return 'user';
+        }
+        
+        // External/subprocess elements
+        if (type === 'SubProcess' || type === 'CallActivity' || 
+            flowType === 'FlowSubflow' || flowType === 'FlowActionCall') {
+            return 'external';
+        }
+        
+        // System/automated elements
+        if (type === 'ServiceTask' || type === 'ScriptTask' || type === 'Task' ||
+            flowType === 'FlowRecordCreate' || flowType === 'FlowRecordUpdate' ||
+            flowType === 'FlowRecordDelete' || flowType === 'FlowRecordLookup' ||
+            flowType === 'FlowAssignment' || flowType === 'FlowLoop') {
+            return 'system';
+        }
+        
+        // Default
+        return 'other';
+    }
+    
+    /**
+     * Calculate modularity score based on multiple factors
+     * IMPROVED: Goes beyond simple element count
+     * 
+     * Factors considered:
+     * 1. Element count (base factor)
+     * 2. Gateway density (branching increases complexity)
+     * 3. Decision complexity (OR gateways are harder to understand)
+     * 4. Subprocess usage (good - shows proper decomposition)
+     * 5. Maximum path length (longer paths = harder to follow)
+     * 
+     * @returns {number} Score from 0-100
+     */
+    calculateModularityScore(noajs, gatewayCount, orGatewayCount) {
+        // Base score from element count (same as before)
+        let baseScore;
+        if (noajs <= 20) {
+            baseScore = 100;
+        } else if (noajs <= 35) {
+            baseScore = 100 - ((noajs - 20) / 15) * 25; // 100 → 75
+        } else if (noajs <= 50) {
+            baseScore = 75 - ((noajs - 35) / 15) * 35;  // 75 → 40
+        } else {
+            baseScore = Math.max(0, 40 - (noajs - 50) * 2); // 40 → 0
+        }
+        
+        // Gateway density penalty
+        // High gateway-to-element ratio indicates complex branching
+        const gatewayRatio = noajs > 0 ? gatewayCount / noajs : 0;
+        let gatewayPenalty = 0;
+        if (gatewayRatio > 0.3) {
+            // More than 30% gateways is very complex
+            gatewayPenalty = (gatewayRatio - 0.3) * 100; // Up to -20 points
+        } else if (gatewayRatio > 0.2) {
+            // 20-30% gateways is moderately complex
+            gatewayPenalty = (gatewayRatio - 0.2) * 50; // Up to -5 points
+        }
+        gatewayPenalty = Math.min(20, gatewayPenalty);
+        
+        // OR gateway penalty (harder to understand and maintain)
+        const orPenalty = Math.min(15, orGatewayCount * 5);
+        
+        // Subprocess bonus (shows good decomposition)
+        const subprocessCount = this.elements.filter(el => 
+            el.type === 'SubProcess' || 
+            el.type === 'CallActivity' ||
+            el.flowElementType === 'FlowSubflow'
+        ).length;
+        const subprocessBonus = Math.min(10, subprocessCount * 3);
+        
+        // Calculate longest path (approximation using BFS depth)
+        const maxPathLength = this.calculateMaxPathLength();
+        let pathPenalty = 0;
+        if (maxPathLength > 15) {
+            pathPenalty = Math.min(15, (maxPathLength - 15) * 2);
+        } else if (maxPathLength > 10) {
+            pathPenalty = (maxPathLength - 10);
+        }
+        
+        // Calculate final score
+        const finalScore = Math.max(0, Math.min(100,
+            baseScore - gatewayPenalty - orPenalty - pathPenalty + subprocessBonus
+        ));
+        
+        return Math.round(finalScore);
+    }
+    
+    /**
+     * Calculate the maximum path length in the process
+     * Uses BFS from start events to find longest path
+     */
+    calculateMaxPathLength() {
+        // Find start events
+        const startEvents = this.elements.filter(el => 
+            el.type === 'StartEvent' || 
+            el.type === 'TimerStartEvent' || 
+            el.type === 'MessageStartEvent' ||
+            el.type === 'SignalStartEvent'
+        );
+        
+        if (startEvents.length === 0) return 0;
+        
+        // Build outgoing adjacency map
+        const outgoing = new Map();
+        this.connections.forEach(conn => {
+            if (!outgoing.has(conn.sourceId)) {
+                outgoing.set(conn.sourceId, []);
+            }
+            outgoing.get(conn.sourceId).push(conn.targetId);
+        });
+        
+        // BFS to find max depth
+        let maxDepth = 0;
+        const visited = new Set();
+        const queue = startEvents.map(el => ({ id: el.id, depth: 1 }));
+        
+        while (queue.length > 0) {
+            const { id, depth } = queue.shift();
+            
+            if (visited.has(id)) continue;
+            visited.add(id);
+            
+            maxDepth = Math.max(maxDepth, depth);
+            
+            const targets = outgoing.get(id) || [];
+            targets.forEach(targetId => {
+                if (!visited.has(targetId)) {
+                    queue.push({ id: targetId, depth: depth + 1 });
+                }
+            });
+        }
+        
+        return maxDepth;
     }
     
     // =========================================================================
@@ -2274,12 +2484,12 @@ export default class ProcessCanvas extends LightningElement {
         const naming = namingScore;
         
         // Modularity (7PMG G7): Model decomposition
-        // Penalize models that are too large for single view
-        const modularity = Math.max(0, Math.min(100,
-            noajs <= 30 ? 100 :
-            noajs <= 50 ? 100 - ((noajs - 30) / 20) * 50 :
-            50 - Math.min(50, (noajs - 50) * 2)
-        ));
+        // IMPROVED: Consider multiple factors, not just element count
+        // - Element count (base)
+        // - Gateway density (branching complexity)
+        // - Maximum path depth
+        // - Presence of subprocesses (good - shows decomposition)
+        const modularity = this.calculateModularityScore(noajs, gatewayCount, orGatewayCount);
         
         // Start/End (7PMG G3): Single entry/exit
         // 100% for single start and end, deduct for multiples
